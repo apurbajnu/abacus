@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Virtual Abacus</title>
+<style>
+  :root {
+    --bg: #f6f1e7; --wood: #8b5a2b; --wood-dark: #5c3a1a;
+    --bead: #d94f2b; --bead-active: #e8724f; --heaven: #2b6cb0; --heaven-active: #4a90d9;
+    --ink: #2d2418; --muted: #7a6a55; --card: #fffdf8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    padding: 20px 16px 40px;
+  }
+  header { max-width: 900px; margin: 0 auto 16px; }
+  h1 { margin: 0; font-size: 24px; }
+  header p { margin: 4px 0 0; color: var(--muted); }
+  main { max-width: 900px; margin: 0 auto; display: grid; gap: 16px; }
+  .card { background: var(--card); border: 1px solid #e4dbc8; border-radius: 14px; padding: 16px; }
+
+  .abacus-svg { width: 100%; height: auto; display: block; }
+  .abacus-frame { fill: #c9a06a; stroke: var(--wood-dark); stroke-width: 3; }
+  .abacus-beam { fill: var(--wood); }
+  .abacus-rod { stroke: #b08d5e; stroke-width: 5; stroke-linecap: round; }
+  .abacus-bead { fill: var(--bead); stroke: var(--wood-dark); stroke-width: 1.5;
+                 transition: y .35s cubic-bezier(.3,.8,.4,1.1); }
+  .abacus-bead.heaven { fill: var(--heaven); }
+  .abacus-bead.active { filter: brightness(1.15); }
+  .abacus-bead.dragging { transition: none; }
+  .abacus-place-label { fill: var(--muted); font-size: 14px; }
+  .abacus-digit-label { fill: var(--ink); font-size: 20px; font-weight: 700; }
+
+  .value-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  #value { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  label { font-size: 13px; color: var(--muted); }
+  input[type=number], select {
+    font: inherit; padding: 8px 10px; border: 1px solid #cfc4ab; border-radius: 8px; width: 130px;
+    background: #fff;
+  }
+  select { width: 80px; }
+  button {
+    font: inherit; padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer;
+    background: var(--wood); color: #fff;
+  }
+  button.secondary { background: #e7dcc6; color: var(--ink); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.toggle.on { background: var(--heaven); }
+
+  .modes { display: flex; gap: 0; border: 1px solid #cfc4ab; border-radius: 8px; overflow: hidden; }
+  .modes button { border-radius: 0; background: #e7dcc6; color: var(--ink); }
+  .modes button.on { background: var(--wood); color: #fff; }
+
+  #subtitle {
+    min-height: 52px; padding: 12px 14px; border-radius: 10px;
+    background: #fff8e8; border: 1px solid #eadfc4; font-size: 17px;
+  }
+  #practice-panel, #watch-panel { display: grid; gap: 10px; }
+  .hint { color: var(--muted); font-size: 13px; }
+  .error { color: #b00020; min-height: 20px; font-size: 14px; }
+  .feedback-good { background: #e8f6e8; border-color: #bfe3bf; }
+  .feedback-bad { background: #fdeaea; border-color: #f2c4c4; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Virtual Abacus</h1>
+  <p>Soroban with spoken step-by-step lessons. Drag beads yourself, or watch the abacus solve it.</p>
+</header>
+<main>
+
+  <section class="card">
+    <div class="controls">
+      <div class="modes" role="tablist">
+        <button id="mode-watch" class="on">Watch mode</button>
+        <button id="mode-practice">Practice mode</button>
+      </div>
+      <span style="flex:1"></span>
+      <button id="btn-explain" class="secondary toggle on">Explanation on</button>
+      <button id="btn-slow" class="secondary toggle">Normal speed</button>
+      <button id="btn-mute" class="secondary toggle on">Voice off</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <label>Narration</label>
+    <div id="subtitle">Welcome to the abacus.</div>
+  </section>
+
+  <section class="card">
+    <div class="value-row">
+      <div><label>Abacus shows</label><div id="value">0</div></div>
+      <div class="controls">
+        <label>Rods</label>
+        <select id="rod-count" style="width:64px">
+          <option>3</option><option>4</option><option>5</option><option>6</option>
+          <option selected>7</option><option>8</option><option>9</option><option>10</option>
+        </select>
+        <button id="btn-clear" class="secondary">Clear</button>
+        <span id="problem-display" style="font-size:18px;font-weight:600"></span>
+      </div>
+    </div>
+    <div id="abacus"></div>
+  </section>
+
+  <section class="card" id="watch-panel">
+    <div class="controls">
+      <input type="number" id="num-a" min="0" placeholder="First number" value="348">
+      <select id="operator"><option>+</option><option>−</option></select>
+      <input type="number" id="num-b" min="0" placeholder="Second number" value="276">
+      <button id="btn-play">Solve with explanation</button>
+      <button id="btn-pause" class="secondary" disabled>Pause</button>
+      <button id="btn-replay" class="secondary" disabled>Replay</button>
+      <span style="flex:1"></span>
+      <button id="btn-prev" class="secondary" disabled>← Back</button>
+      <button id="btn-next" class="secondary" disabled>Next →</button>
+    </div>
+    <div class="hint">Enter two numbers. The abacus sets the first number, then works each digit and explains every bead move.</div>
+    <div class="error" id="watch-error"></div>
+
+    <div class="controls" style="margin-top:10px; padding-top:10px; border-top:1px solid #eee6d4">
+      <input type="number" id="count-from" min="0" placeholder="Count from" value="1">
+      <span class="hint">to</span>
+      <input type="number" id="count-to" min="0" placeholder="Count to" value="10">
+      <button id="btn-count">Count</button>
+      <button id="btn-count-rev" class="secondary">Reverse count</button>
+    </div>
+    <div class="hint">Counts one bead at a time from the first number to the second, saying each number out loud. Reverse counts backwards.</div>
+  </section>
+
+  <section class="card" id="practice-panel" hidden>
+    <div class="controls">
+      <input type="number" id="p-num-a" min="0" placeholder="First number" value="123">
+      <select id="p-operator"><option>+</option><option>−</option></select>
+      <input type="number" id="p-num-b" min="0" placeholder="Second number" value="59">
+      <button id="btn-start-practice">Start practice</button>
+    </div>
+    <div class="hint">The abacus is set with the first number for you. Move the beads yourself, then check your answer.</div>
+    <div class="controls">
+      <input type="number" id="p-answer" placeholder="Your answer">
+      <button id="btn-check">Check answer</button>
+      <button id="btn-hint" class="secondary">Hint</button>
+      <button id="btn-show-solution" class="secondary">Show me how</button>
+    </div>
+    <div class="error" id="practice-error"></div>
+  </section>
+
+</main>
+
+<script src="abacus.js"></script>
+<script src="solver.js"></script>
+<script>
+(async function () {
+  let T;
+  try {
+    T = await fetch('tts.json').then((r) => r.json());
+  } catch (e) {
+    document.getElementById('subtitle').textContent =
+      'Could not load tts.json. Serve this folder over HTTP, e.g. python3 -m http.server';
+    return;
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const subtitle = $('subtitle');
+  const valueEl = $('value');
+  let rodCount = Number(localStorage.getItem('abacus.rods')) || 7;
+  $('rod-count').value = String(rodCount);
+  let abacus = new Abacus($('abacus'), { rods: rodCount, onchange: (v) => { valueEl.textContent = v; } });
+
+  // ---------- speech ----------
+  let muted = true;
+  // speed: 'normal' | 'slow' | 'turbo' (turbo = no voice, minimal pauses)
+  let speedMode = 'normal';
+  // explanation on: full narration; off: only bead actions
+  let explain = true;
+  let currentRaw = null;
+  function withExplanation(raw) {
+    return explain ? raw : raw.filter((st) => st.place >= 1 || st.clear);
+  }
+  function speak(text) {
+    return new Promise((resolve) => {
+      if (!text) { setTimeout(resolve, 30); return; }
+      if (speedMode === 'turbo' || muted || !('speechSynthesis' in window)) { setTimeout(resolve, 30); return; }
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'en';
+      u.rate = speedMode === 'slow' ? 0.85 : 1;
+      // safety timeout in case events never fire
+      const maxMs = 1200 + text.length * 90;
+      const t = setTimeout(resolve, maxMs);
+      const done = () => { clearTimeout(t); };
+      u.onend = () => { done(); resolve(); };
+      u.onerror = () => { done(); resolve(); };
+      speechSynthesis.speak(u);
+    });
+  }
+
+  // ---------- step runner (watch mode) ----------
+  let playing = false, pauseRequested = false, currentSteps = null;
+  let stepIndex = -1; // manual navigation position within currentSteps
+  const PACE = {
+    turbo:  { bead: 90,  line: 25 },
+    normal: { bead: 450, line: 150 },
+    slow:   { bead: 900, line: 350 },
+  };
+
+  async function runSteps(steps) {
+    playing = true; pauseRequested = false;
+    stepIndex = -1;
+    abacus.locked = true; // no bead clicks while counting / solving
+    setPlayButtons(true);
+    const pace = PACE[speedMode];
+    try {
+      for (const st of steps) {
+        if (!playing) break;
+        while (pauseRequested && playing) await sleep(200);
+        stepIndex++;
+        if (st.say) subtitle.textContent = st.say;
+        if (st.clear) abacus.clear();
+        await speak(st.say);
+        if (st.place >= 1) {
+          abacus.setRodByPlace(st.place, st.digit);
+          await sleep(pace.bead);
+        } else {
+          await sleep(pace.line);
+        }
+      }
+    } finally {
+      playing = false; pauseRequested = false;
+      abacus.locked = false;
+      setPlayButtons(false);
+    }
+  }
+
+  // ---------- manual step navigation ----------
+  function applyStep(st) {
+    if (st.clear) abacus.clear();
+    else if (st.place >= 1) abacus.setRodByPlace(st.place, st.digit);
+  }
+
+  function goToStep(i) {
+    if (!currentSteps) return;
+    playing = false; // manual nav overrides playback
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    stepIndex = Math.max(-1, Math.min(i, currentSteps.length - 1));
+    // rebuild deterministically from the start so Back is exact
+    abacus.clear();
+    for (let k = 0; k <= stepIndex; k++) applyStep(currentSteps[k]);
+    const st = currentSteps[Math.max(0, stepIndex)];
+    if (st && st.say) {
+      subtitle.className = '';
+      subtitle.textContent = st.say;
+      speak(st.say);
+    }
+    setPlayButtons(false);
+  }
+
+  $('btn-next').addEventListener('click', () => goToStep(stepIndex + 1));
+  $('btn-prev').addEventListener('click', () => goToStep(stepIndex - 1));
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  function setPlayButtons(busy) {
+    $('btn-pause').disabled = !busy;
+    $('btn-replay').disabled = !currentSteps;
+    $('btn-play').textContent = busy ? 'Stop' : (explain ? 'Solve with explanation' : 'Solve');
+    $('btn-next').disabled = !currentSteps || stepIndex >= currentSteps.length - 1;
+    $('btn-prev').disabled = !currentSteps || stepIndex < 0;
+  }
+
+  function readProblem(aId, opId, bId) {
+    const a = Number($(aId).value), b = Number($(bId).value);
+    const op = $(opId).value === '−' ? '-' : '+';
+    if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0) return null;
+    return { a, op, b };
+  }
+
+  function displayProblem(a, op, b) {
+    $('problem-display').textContent = `${a} ${op === '+' ? '+' : '−'} ${b} = ?`;
+  }
+
+  // ---------- watch mode ----------
+  let solver = new Solver.Solver(T, rodCount);
+  $('btn-play').addEventListener('click', () => {
+    if (playing) { playing = false; speechSynthesis && speechSynthesis.cancel(); return; }
+    const p = readProblem('num-a', 'operator', 'num-b');
+    $('watch-error').textContent = p ? '' : T.special_cases.invalid_input;
+    if (!p) return;
+    const { steps, result } = solver.solve(p.a, p.op, p.b);
+    if (result === null) {
+      subtitle.textContent = steps[0].say;
+      speak(steps[0].say);
+      return;
+    }
+    displayProblem(p.a, p.op, p.b);
+    currentRaw = steps;
+    currentSteps = withExplanation(steps);
+    runSteps(currentSteps);
+  });
+  $('btn-pause').addEventListener('click', () => {
+    pauseRequested = !pauseRequested;
+    $('btn-pause').textContent = pauseRequested ? 'Resume' : 'Pause';
+    if (pauseRequested && 'speechSynthesis' in window) speechSynthesis.pause();
+    else if ('speechSynthesis' in window) speechSynthesis.resume();
+  });
+  $('btn-replay').addEventListener('click', () => {
+    if (currentSteps && !playing) runSteps(currentSteps);
+  });
+
+  // ---------- random problem on load ----------
+  // random a, operator, b — filtered so a minus never goes below zero
+  // (for '-', the larger value is always placed first) and both fit the rods
+  function randomProblem() {
+    const max = solver.maxValue;
+    const digits = Math.max(1, solver.rods - 1); // leave headroom for carries
+    const cap = Math.min(max, Math.pow(10, digits) - 1);
+    const pick = () => Math.floor(Math.random() * cap) + 1;
+    const op = Math.random() < 0.5 ? '+' : '-';
+    let a = pick(), b = pick();
+    if (op === '-' && a < b) { const t = a; a = b; b = t; }
+    $('num-a').value = a;
+    $('num-b').value = b;
+    $('operator').value = op === '-' ? '−' : '+';
+    $('watch-error').textContent = '';
+  }
+  randomProblem();
+
+  // ---------- counting ----------
+  function startCount(reverse) {
+    if (playing) { playing = false; if ('speechSynthesis' in window) speechSynthesis.cancel(); }
+    let from = Number($('count-from').value), to = Number($('count-to').value);
+    if (reverse) { const tmp = from; from = to; to = tmp; }
+    const { steps, result } = solver.countSteps(from, to);
+    if (result === null) {
+      subtitle.className = '';
+      subtitle.textContent = steps[0].say;
+      speak(steps[0].say);
+      return;
+    }
+    $('problem-display').textContent = `Count ${from} → ${to}`;
+    currentRaw = steps;
+    currentSteps = withExplanation(steps);
+    runSteps(currentSteps);
+  }
+  $('btn-count').addEventListener('click', () => startCount(false));
+  $('btn-count-rev').addEventListener('click', () => startCount(true));
+
+  // ---------- practice mode ----------
+  let practice = null; // {a, op, b, result, active}
+  $('btn-start-practice').addEventListener('click', async () => {
+    const p = readProblem('p-num-a', 'p-operator', 'p-num-b');
+    $('practice-error').textContent = p ? '' : T.special_cases.invalid_input;
+    if (!p) return;
+    const { steps, result } = solver.practiceSetup(p.a, p.op, p.b);
+    if (result < 0) { $('practice-error').textContent = T.special_cases.negative_result; return; }
+    if (result > solver.maxValue) {
+      $('practice-error').textContent = Solver.fill(T.special_cases.overflow, { total_rods: solver.rods });
+      return;
+    }
+    practice = { a: p.a, op: p.op, b: p.b, result, active: true };
+    displayProblem(p.a, p.op, p.b);
+    subtitle.className = '';
+    $('p-answer').value = '';
+    playing = false;
+    await runSteps(steps);
+    subtitle.textContent = 'Now move the beads yourself, then enter your answer.';
+  });
+
+  $('btn-check').addEventListener('click', () => {
+    if (!practice || !practice.active) { $('practice-error').textContent = 'Start a practice problem first.'; return; }
+    const userAnswer = $('p-answer').value.trim();
+    if (userAnswer === '' || isNaN(Number(userAnswer))) {
+      $('practice-error').textContent = T.special_cases.invalid_input; return;
+    }
+    $('practice-error').textContent = '';
+    const ua = Number(userAnswer);
+    const beadValue = abacus.value();
+    const good = ua === practice.result && beadValue === practice.result;
+    const fb = T.feedback;
+    subtitle.className = good ? 'feedback-good' : 'feedback-bad';
+    if (good) {
+      subtitle.textContent = `${Solver.pick(fb.correct)} ${Solver.fill(T.session.problem_complete, {
+        first_number: practice.a, operator_word: practice.op === '+' ? 'plus' : 'minus',
+        second_number: practice.b, result: practice.result,
+      })}`;
+    } else {
+      subtitle.textContent = `${Solver.pick(fb.incorrect)} ${Solver.fill(fb.correct_answer_reveal, {
+        result: practice.result, user_answer: ua,
+      })}`;
+    }
+    practice.active = false;
+    speak(subtitle.textContent);
+  });
+
+  $('btn-hint').addEventListener('click', () => {
+    if (!practice) return;
+    const msg = Math.random() < 0.5 ? T.feedback.hint_method : Solver.pick(T.feedback.encouragement);
+    subtitle.className = '';
+    subtitle.textContent = msg;
+    speak(msg);
+  });
+
+  $('btn-show-solution').addEventListener('click', () => {
+    if (!practice) { $('practice-error').textContent = 'Start a practice problem first.'; return; }
+    const { steps } = solver.solve(practice.a, practice.op, practice.b);
+    currentRaw = steps;
+    currentSteps = withExplanation(steps);
+    runSteps(currentSteps);
+  });
+
+  // ---------- shared controls ----------
+  const SPEED_ORDER = ['normal', 'slow', 'turbo'];
+  const SPEED_LABEL = { normal: 'Normal speed', slow: 'Slow mode', turbo: 'Turbo (no voice)' };
+  $('btn-slow').addEventListener('click', () => {
+    speedMode = SPEED_ORDER[(SPEED_ORDER.indexOf(speedMode) + 1) % SPEED_ORDER.length];
+    $('btn-slow').classList.toggle('on', speedMode !== 'normal');
+    $('btn-slow').textContent = SPEED_LABEL[speedMode];
+    if (speedMode === 'turbo' && 'speechSynthesis' in window) speechSynthesis.cancel();
+    const msg = speedMode === 'slow' ? T.playback.slow_mode
+      : speedMode === 'turbo' ? 'Turbo mode. No voice, steps only.'
+      : T.playback.fast_mode;
+    subtitle.className = '';
+    subtitle.textContent = msg;
+    speak(msg);
+  });
+  $('btn-mute').addEventListener('click', () => {
+    muted = !muted;
+    $('btn-mute').classList.toggle('on', muted);
+    $('btn-mute').textContent = muted ? 'Voice off' : 'Voice on';
+    if (muted && 'speechSynthesis' in window) speechSynthesis.cancel();
+  });
+  $('btn-clear').addEventListener('click', () => {
+    playing = false;
+    abacus.clear();
+    subtitle.className = '';
+    subtitle.textContent = T.session.cleared;
+    speak(T.session.cleared);
+  });
+
+  // ---------- rod count ----------
+  $('rod-count').addEventListener('change', () => {
+    rodCount = Number($('rod-count').value);
+    localStorage.setItem('abacus.rods', String(rodCount));
+    playing = false;
+    currentSteps = null;
+    setPlayButtons(false);
+    practice = null;
+    $('abacus').innerHTML = '';
+    abacus = new Abacus($('abacus'), { rods: rodCount, onchange: (v) => { valueEl.textContent = v; } });
+    solver = new Solver.Solver(T, rodCount);
+    randomProblem();
+  });
+
+  // ---------- explanation toggle ----------
+  $('btn-explain').addEventListener('click', () => {
+    explain = !explain;
+    $('btn-explain').classList.toggle('on', explain);
+    $('btn-explain').textContent = explain ? 'Explanation on' : 'Explanation off';
+    if (!playing) $('btn-play').textContent = explain ? 'Solve with explanation' : 'Solve';
+    if (currentRaw) {
+      playing = false;
+      currentSteps = withExplanation(currentRaw);
+      stepIndex = -1;
+      abacus.clear();
+      subtitle.className = '';
+      subtitle.textContent = explain ? 'Explanation is on.' : 'Explanation off. Bead moves only.';
+      setPlayButtons(false);
+    }
+  });
+
+  // ---------- mode switch ----------
+  function switchMode(watch) {
+    $('mode-watch').classList.toggle('on', watch);
+    $('mode-practice').classList.toggle('on', !watch);
+    $('watch-panel').hidden = !watch;
+    $('practice-panel').hidden = watch;
+    localStorage.setItem('abacus.mode', watch ? 'watch' : 'practice');
+  }
+  switchMode(localStorage.getItem('abacus.mode') !== 'practice');
+  $('mode-watch').addEventListener('click', () => switchMode(true));
+  $('mode-practice').addEventListener('click', () => switchMode(false));
+
+  // greeting
+  subtitle.textContent = T.session.welcome;
+  speak(T.session.welcome);
+})();
+</script>
+</body>
+</html>
