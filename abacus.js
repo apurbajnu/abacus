@@ -37,16 +37,19 @@
     frame.setAttribute('rx', 18);
     frame.classList.add('abacus-frame');
     svg.appendChild(frame);
+    this.frameEl = frame;
 
     const beam = document.createElementNS(NS, 'rect');
     beam.setAttribute('x', 6); beam.setAttribute('y', BEAM_Y - 9);
     beam.setAttribute('width', W - 12); beam.setAttribute('height', 18);
     beam.classList.add('abacus-beam');
     svg.appendChild(beam);
+    this.beamEl = beam;
 
     const rodGap = W / (this.rods + 1);
     this.beadW = rodGap * 0.72;
     this.rodX = [];
+    this.rodEls = [];
     this.beadEls = [];
 
     for (let r = 0; r < this.rods; r++) {
@@ -58,6 +61,7 @@
       rod.setAttribute('x2', x); rod.setAttribute('y2', H - 40);
       rod.classList.add('abacus-rod');
       svg.appendChild(rod);
+      this.rodEls[r] = rod;
 
       const value = Math.pow(10, r);
       const label = document.createElementNS(NS, 'text');
@@ -128,6 +132,25 @@
 
   Abacus.prototype.earthSlotY = function (j) {
     return SLOT0 + j * SLOT_GAP;
+  };
+
+  // guided-tour highlighting: part is one of
+  // 'frame' | 'rod' | 'beam' | 'heaven' | 'earth' | 'place', or null to clear
+  Abacus.prototype.highlight = function (part) {
+    this.svg.querySelectorAll('.hl').forEach((el) => el.classList.remove('hl'));
+    if (!part) return;
+    const u = 0; // demonstrate on the units rod (rightmost)
+    if (part === 'frame') this.frameEl.classList.add('hl');
+    else if (part === 'rod') this.rodEls.forEach((el) => el.classList.add('hl'));
+    else if (part === 'beam') this.beamEl.classList.add('hl');
+    else if (part === 'heaven') this.beadEls[u].heaven.classList.add('hl');
+    else if (part === 'earth') this.beadEls[u].earth.forEach((el) => el.classList.add('hl'));
+    else if (part === 'place') {
+      this.rodEls[0].classList.add('hl');
+      this.rodEls[1].classList.add('hl');
+      this.beadEls[0].earth.forEach((el) => el.classList.add('hl'));
+      this.beadEls[1].earth.forEach((el) => el.classList.add('hl'));
+    }
   };
 
   Abacus.prototype.setDigit = function (rodIndex, d) {
