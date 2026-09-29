@@ -24,6 +24,13 @@
     return names[String(place)] || fill(names.fallback, { place });
   }
 
+  function operatorWord(T, operator) {
+    const w = (T.meta && T.meta.operator_words) || {};
+    if (operator === '+') return w.plus || 'plus';
+    if (operator === '-') return w.minus || 'minus';
+    return w.times || 'times';
+  }
+
   function pick(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
   }
@@ -47,11 +54,11 @@
     const vars = {
       first_number: a,
       second_number: b,
-      operator_word: operator === '+' ? 'plus' : 'minus',
+      operator_word: operatorWord(T, operator),
     };
 
-    if (operator !== '+' && operator !== '-') {
-      throw new Error('Only + and - are supported for now');
+    if (operator !== '+' && operator !== '-' && operator !== '*') {
+      throw new Error('Only +, - and * are supported for now');
     }
     function early(say) {
       return { steps: [{ say, place: 0, digit: null }], result: null };
@@ -62,7 +69,7 @@
     if (a > this.maxValue || b > this.maxValue) {
       return early(fill(T.special_cases.overflow, { total_rods: this.rods }));
     }
-    const result = operator === '+' ? a + b : a - b;
+    const result = operator === '+' ? a + b : operator === '-' ? a - b : a * b;
     if (result < 0) {
       return early(T.special_cases.negative_result);
     }
@@ -72,6 +79,13 @@
 
     const core = this._core(steps);
     const { push, setNumber, addAt, subAt } = core;
+
+    // add a multi-digit number n starting at `place` (units of n sits on `place`),
+    // most significant digit first, using the narrated add methods
+    function addNumberAt(place, n) {
+      const s = String(n);
+      for (let i = 0; i < s.length; i++) addAt(place + (s.length - 1 - i), Number(s[i]));
+    }
 
     function applyNumber(n) {
       const s = String(n);
@@ -90,9 +104,39 @@
     steps.push({ say: T.session.welcome, place: 0, digit: null });
     steps.push({ say: T.session.clearing, place: 0, digit: null, clear: true });
     steps.push({ say: T.session.cleared, place: 0, digit: null });
-    setNumber(a, vars);
-    push(fill(T.session.problem_intro, vars), 0, null);
-    applyNumber(b);
+    if (operator === '*') {
+      // school method: every digit of a times every digit of b, one digit
+      // pair at a time, accumulated left to right with the narrated add methods
+      push(fill(T.session.problem_intro, vars), 0, null);
+      push(fill(T.multiplication.intro, vars), 0, null);
+      let acc = 0;
+      const as = String(a), bs = String(b);
+      for (let i = 0; i < as.length; i++) {
+        const da = Number(as[i]);
+        const pa = as.length - i;
+        if (da === 0) continue;
+        push(fill(T.session.next_digit, {
+          place_name: placeName(T, pa), digit: da,
+        }), 0, null);
+        for (let j = 0; j < bs.length; j++) {
+          const db = Number(bs[j]);
+          const pb = bs.length - j;
+          if (db === 0) continue;
+          const partial = da * db;
+          const place = pa + pb - 1;
+          push(fill(T.multiplication.partial, {
+            digit: da, digit2: db, partial,
+          }), 0, null);
+          addNumberAt(place, partial);
+          acc += partial * Math.pow(10, place - 1);
+          push(fill(T.session.current_value, { current_value: acc }), 0, null);
+        }
+      }
+    } else {
+      setNumber(a, vars);
+      push(fill(T.session.problem_intro, vars), 0, null);
+      applyNumber(b);
+    }
     push(fill(T.session.result, { result }), 0, null);
     push(fill(T.session.problem_complete, Object.assign({}, vars, { result })), 0, null);
     return { steps, result };
@@ -247,7 +291,7 @@
     core.setNumber(from, {
       first_number: from,
       second_number: to,
-      operator_word: from <= to ? 'plus' : 'minus',
+      operator_word: operatorWord(T, from <= to ? '+' : '-'),
     });
     const inc = from <= to ? 1 : -1;
     for (let v = from + inc; ; v += inc) {
@@ -313,9 +357,9 @@
     const vars = {
       first_number: a,
       second_number: b,
-      operator_word: operator === '+' ? 'plus' : 'minus',
+      operator_word: operatorWord(T, operator),
     };
-    const result = operator === '+' ? a + b : a - b;
+    const result = operator === '+' ? a + b : operator === '-' ? a - b : a * b;
     const steps = [];
     steps.push({ say: T.session.clearing, place: 0, digit: null, clear: true });
     const state = new Array(this.rods).fill(0);
@@ -336,20 +380,24 @@
     // cue for the biggest digit of b that changes beads
     const bs = String(b);
     let cue = null;
-    for (let i = bs.length; i >= 1; i--) {
-      if (Number(bs[i - 1]) !== 0) {
-        cue = fill(T.feedback.your_turn, {
-          number: Number(bs[i - 1]),
-          place_name: placeName(T, bs.length - i + 1),
-        });
-        break;
+    if (operator === '*') {
+      cue = fill(T.feedback.your_turn_multiply, vars);
+    } else {
+      for (let i = bs.length; i >= 1; i--) {
+        if (Number(bs[i - 1]) !== 0) {
+          cue = fill(T.feedback.your_turn, {
+            number: Number(bs[i - 1]),
+            place_name: placeName(T, bs.length - i + 1),
+          });
+          break;
+        }
       }
     }
     if (cue) steps.push({ say: cue, place: 0, digit: null });
     return { steps, result };
   };
 
-  const api = { Solver, fill, placeName, pick };
+  const api = { Solver, fill, placeName, pick, operatorWord };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.Solver = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -88,6 +88,11 @@
         <button id="mode-drills">Complements</button>
       </div>
       <button id="btn-tour" class="secondary">Learn the abacus</button>
+      <select id="lang" style="width:90px">
+        <option value="en">English</option>
+        <option value="bn">বাংলা</option>
+        <option value="hi">हिन्दी</option>
+      </select>
       <span style="flex:1"></span>
       <button id="btn-explain" class="secondary toggle on">Explanation on</button>
       <button id="btn-slow" class="secondary toggle">Normal speed</button>
@@ -119,7 +124,7 @@
   <section class="card" id="watch-panel">
     <div class="controls">
       <input type="number" id="num-a" min="0" placeholder="First number" value="348">
-      <select id="operator"><option>+</option><option>−</option></select>
+      <select id="operator"><option>+</option><option>−</option><option>×</option></select>
       <input type="number" id="num-b" min="0" placeholder="Second number" value="276">
       <button id="btn-play">Solve with explanation</button>
       <button id="btn-pause" class="secondary" disabled>Pause</button>
@@ -144,7 +149,7 @@
   <section class="card" id="practice-panel" hidden>
     <div class="controls">
       <input type="number" id="p-num-a" min="0" placeholder="First number" value="123">
-      <select id="p-operator"><option>+</option><option>−</option></select>
+      <select id="p-operator"><option>+</option><option>−</option><option>×</option></select>
       <input type="number" id="p-num-b" min="0" placeholder="Second number" value="59">
       <button id="btn-start-practice">Start practice</button>
     </div>
@@ -186,17 +191,35 @@
 <script src="solver.js"></script>
 <script>
 (async function () {
+  let lang = localStorage.getItem('abacus.lang') || 'en';
+  const LANG_FILE = { en: 'tts.json', bn: 'tts.bn.json', hi: 'tts.hi.json' };
+  const LANG_VOICE = { en: 'en', bn: 'bn', hi: 'hi' };
+  const LANG_DIGITS = {
+    bn: ['০','১','২','৩','৪','৫','৬','৭','৮','৯'],
+    hi: ['०','१','२','३','४','५','६','७','८','९'],
+  };
+  // show/speak Latin digits as native numerals in bn/hi mode
+  function loc(text) {
+    if (typeof text !== 'string' || !LANG_DIGITS[lang]) return text;
+    return text.replace(/[0-9]/g, (d) => LANG_DIGITS[lang][d]);
+  }
   let T;
   try {
-    T = await fetch('tts.json').then((r) => r.json());
+    T = await fetch(LANG_FILE[lang] + '?v=' + Date.now()).then((r) => r.json());
   } catch (e) {
     document.getElementById('subtitle').textContent =
-      'Could not load tts.json. Serve this folder over HTTP, e.g. python3 -m http.server';
+      'Could not load narration file. Serve this folder over HTTP, e.g. python3 -m http.server';
     return;
   }
+  document.documentElement.lang = lang;
 
   const $ = (id) => document.getElementById(id);
-  const subtitle = $('subtitle');
+  const subtitleEl = $('subtitle');
+  const subtitle = {
+    get textContent() { return subtitleEl.textContent; },
+    set textContent(v) { subtitleEl.textContent = loc(v); },
+    set className(v) { subtitleEl.className = v; },
+  };
   const valueEl = $('value');
   let rodCount = Number(localStorage.getItem('abacus.rods')) || 7;
   $('rod-count').value = String(rodCount);
@@ -217,13 +240,11 @@
   let voice = null;
   function pickVoice() {
     if (!('speechSynthesis' in window)) return;
-    const vs = speechSynthesis.getVoices().filter((v) => v.lang && v.lang.toLowerCase().startsWith('en'));
-    if (!vs.length) return;
-    const prefs = [
-      /natural/i, /neural/i, /premium|enhanced/i,
-      /google us english/i, /samantha/i, /aria|jenny|guy|zira/i,
-      /en-US/i,
-    ];
+    const wantPrefix = LANG_VOICE[lang] || 'en';
+    const all = speechSynthesis.getVoices();
+    const vs = all.filter((v) => v.lang && v.lang.toLowerCase().startsWith(wantPrefix));
+    if (!vs.length) { voice = null; return; }
+    const prefs = [/natural/i, /neural/i, /premium|enhanced/i, /google/i, /samantha/i];
     for (const p of prefs) {
       const v = vs.find((x) => p.test(x.name));
       if (v) { voice = v; return; }
@@ -241,8 +262,8 @@
       if (speedMode === 'turbo' || muted || !('speechSynthesis' in window)) { setTimeout(resolve, 30); return; }
       speechSynthesis.cancel();
       speechSynthesis.resume(); // Chrome sometimes sticks in a paused state
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = voice ? voice.lang : 'en-US';
+      const u = new SpeechSynthesisUtterance(loc(text));
+      u.lang = voice ? voice.lang : (lang === 'bn' ? 'bn-BD' : lang === 'hi' ? 'hi-IN' : 'en-US');
       if (voice) u.voice = voice;
       u.rate = speedMode === 'slow' ? 0.85 : 0.98;
       u.pitch = 1.05; // slightly brighter, less robotic
@@ -330,13 +351,14 @@
 
   function readProblem(aId, opId, bId) {
     const a = Number($(aId).value), b = Number($(bId).value);
-    const op = $(opId).value === '−' ? '-' : '+';
+    const op = $(opId).value === '−' ? '-' : $(opId).value === '×' ? '*' : '+';
     if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0) return null;
     return { a, op, b };
   }
 
   function displayProblem(a, op, b) {
-    $('problem-display').textContent = `${a} ${op === '+' ? '+' : '−'} ${b} = ?`;
+    const sym = op === '+' ? '+' : op === '-' ? '−' : '×';
+    $('problem-display').textContent = `${a} ${sym} ${b} = ?`;
   }
 
   // ---------- watch mode ----------
@@ -372,15 +394,23 @@
   // (for '-', the larger value is always placed first) and both fit the rods
   function randomProblem() {
     const max = solver.maxValue;
-    const digits = Math.max(1, solver.rods - 1); // leave headroom for carries
+    const digits = Math.min(3, Math.max(1, solver.rods - 1)); // keep problems short
     const cap = Math.min(max, Math.pow(10, digits) - 1);
     const pick = () => Math.floor(Math.random() * cap) + 1;
-    const op = Math.random() < 0.5 ? '+' : '-';
+    const r = Math.random();
+    const op = r < 0.4 ? '+' : r < 0.8 ? '-' : '*';
     let a = pick(), b = pick();
+    if (op === '*') {
+      // keep the product within the rods
+      const md = Math.max(1, Math.floor(solver.rods / 2));
+      const mcap = Math.pow(10, md) - 1;
+      a = Math.floor(Math.random() * mcap) + 1;
+      b = Math.floor(Math.random() * mcap) + 1;
+    }
     if (op === '-' && a < b) { const t = a; a = b; b = t; }
     $('num-a').value = a;
     $('num-b').value = b;
-    $('operator').value = op === '-' ? '−' : '+';
+    $('operator').value = op === '-' ? '−' : op === '*' ? '×' : '+';
     $('watch-error').textContent = '';
   }
   randomProblem();
@@ -440,7 +470,7 @@
     subtitle.className = good ? 'feedback-good' : 'feedback-bad';
     if (good) {
       subtitle.textContent = `${Solver.pick(fb.correct)} ${Solver.fill(T.session.problem_complete, {
-        first_number: practice.a, operator_word: practice.op === '+' ? 'plus' : 'minus',
+        first_number: practice.a, operator_word: Solver.operatorWord(T, practice.op),
         second_number: practice.b, result: practice.result,
       })}`;
     } else {
@@ -669,6 +699,13 @@
 
   $('drill-answer').addEventListener('keydown', (ev) => {
     if (ev.key === 'Enter') $('btn-drill-check').click();
+  });
+
+  // ---------- language ----------
+  $('lang').value = lang;
+  $('lang').addEventListener('change', () => {
+    localStorage.setItem('abacus.lang', $('lang').value);
+    location.reload();
   });
 
   // greeting
