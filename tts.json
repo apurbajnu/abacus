@@ -30,7 +30,8 @@
     "operator_words": {
       "plus": "plus",
       "minus": "minus",
-      "times": "times"
+      "times": "times",
+      "divide": "divided by"
     }
   },
   "place_names": {
@@ -195,5 +196,28 @@
   "multiplication": {
     "intro": "This is multiplication. We multiply each digit of {first_number} by each digit of {second_number}, one digit at a time.",
     "partial": "{digit} times {digit2} is {partial}."
+  },
+  "division": {
+    "intro": "This is division. We take the digits of {first_number} from the left, and ask how many times {second_number} fits.",
+    "work": "Now we work with {cur}.",
+    "ask": "How many times does {second_number} go into {cur}?",
+    "times": "{q} times. {q} times {second_number} is {product}.",
+    "left": "{rem} is left.",
+    "remainder": "{first_number} divided by {second_number} is {quotient}, with remainder {rem}.",
+    "by_zero": "We cannot divide by zero. Please choose another number.",
+    "your_turn_divide": "Now it's your turn. Divide {first_number} by {second_number}, then enter your answer."
+  },
+  "intro": {
+    "title": "Meet the Abacus",
+    "scenes": {
+      "before_numbers": "Long before calculators, even before paper and pencil were common, people needed to count. Grain. Coins. Days. Herd animals. By the time you reached ten, your fingers ran out. So people reached for pebbles, for knots in rope, for marks on a stick — anything that could hold onto a number while their hands and minds moved on to the next task.",
+      "idea_spread": "About four thousand years ago, someone had a good idea: instead of scattering pebbles about, let's arrange them on rods. Divide them into columns. Let each column stand for its own place — units, tens, hundreds. This simple idea spread across cultures and changed shape — the Roman abacus, the Chinese suanpan, the Japanese soroban, the Russian schoty. Each looked a little different, but the idea inside was the same: numbers you can see, touch, and move.",
+      "meet_soroban": "This is a soroban — the form we will learn on. It is small enough to hold in two hands, yet it can hold a number as big as you need. Come, let's get to know its parts, one by one.",
+      "rods": "The beads live on these vertical rods. Each rod stands for a place — this is the units, this is the tens, this is the hundreds — just like the columns you use when writing numbers, only now you can hold it in your hands.",
+      "beam": "The bar running through the middle is called the beam. It is the most important line of all. A bead touching the beam is counted. A bead away from the beam is not. Every number on this abacus is really the answer to one question: which beads are touching the beam right now?",
+      "beads": "Above the beam sits one bead, worth five. Below the beam sit four beads, each worth one. Bring the five bead down, and raise the earth beads up, and watch the beam count them — every number from zero to nine on a single rod is made this way.",
+      "why_it_matters": "In this age full of calculators, you may wonder why we still learn this. Because the abacus doesn't just give answers — it shows how the answer is built. Every carry, every borrow, every complement happens right before your eyes, under your own fingertips. Those who practice it for years can add and subtract faster than a calculator, purely in their minds — because after enough practice, they no longer need the beads. They simply see them in their imagination.",
+      "invitation": "And that is the abacus — thousands of years of counting, folded into a frame you can hold. Now it's your turn. Come, let's set your first number."
+    }
   }
 }

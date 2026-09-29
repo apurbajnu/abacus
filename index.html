@@ -23,6 +23,8 @@
   .card { background: var(--card); border: 1px solid #e4dbc8; border-radius: 14px; padding: 16px; }
 
   .abacus-svg { width: 100%; height: auto; display: block; }
+  #abacus { transition: opacity .8s, filter .8s; }
+  #abacus.dim { opacity: .25; filter: grayscale(.7); }
   .abacus-frame { fill: #c9a06a; stroke: var(--wood-dark); stroke-width: 3; }
   .abacus-beam { fill: var(--wood); }
   .abacus-rod { stroke: #b08d5e; stroke-width: 5; stroke-linecap: round; }
@@ -87,6 +89,7 @@
         <button id="mode-practice">Practice mode</button>
         <button id="mode-drills">Complements</button>
       </div>
+      <button id="btn-intro" class="secondary" hidden>Introduction</button>
       <button id="btn-tour" class="secondary">Learn the abacus</button>
       <select id="lang" style="width:90px">
         <option value="en">English</option>
@@ -124,7 +127,7 @@
   <section class="card" id="watch-panel">
     <div class="controls">
       <input type="number" id="num-a" min="0" placeholder="First number" value="348">
-      <select id="operator"><option>+</option><option>−</option><option>×</option></select>
+      <select id="operator"><option>+</option><option>−</option><option>×</option><option>÷</option></select>
       <input type="number" id="num-b" min="0" placeholder="Second number" value="276">
       <button id="btn-play">Solve with explanation</button>
       <button id="btn-pause" class="secondary" disabled>Pause</button>
@@ -149,7 +152,7 @@
   <section class="card" id="practice-panel" hidden>
     <div class="controls">
       <input type="number" id="p-num-a" min="0" placeholder="First number" value="123">
-      <select id="p-operator"><option>+</option><option>−</option><option>×</option></select>
+      <select id="p-operator"><option>+</option><option>−</option><option>×</option><option>÷</option></select>
       <input type="number" id="p-num-b" min="0" placeholder="Second number" value="59">
       <button id="btn-start-practice">Start practice</button>
     </div>
@@ -256,10 +259,70 @@
     speechSynthesis.onvoiceschanged = pickVoice;
   }
 
-  function speak(text) {
+  // ---------- recorded voice (MP3 clips) with system TTS as fallback ----------
+  // All-or-nothing per page load: if the clip library loads, ONLY recorded
+  // voice is used; if it fails, every line goes to system TTS. No mixing.
+  let manifest = null;
+  const voiceReady = Promise.race([
+    fetch('audio/' + lang + '/manifest.json')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((m) => { manifest = m; })
+      .catch(() => {}),
+    new Promise((resolve) => setTimeout(resolve, 2000)), // don't hang on slow networks
+  ]);
+  const clipCache = {};
+  function clipUrl(part) {
+    if (part.s !== undefined) return 'audio/' + lang + '/sent/' + slug(part.s) + '.mp3';
+    if (part.f !== undefined) return 'audio/' + lang + '/frag/' + slug(part.f) + '.mp3';
+    return 'audio/' + lang + '/num/' + part.n + '.mp3';
+  }
+  function slug(text) {
+    // must match tools/gen-voice.js
+    let h = 5381;
+    for (let i = 0; i < text.length; i++) h = ((h * 33) ^ text.charCodeAt(i)) >>> 0;
+    return h.toString(36);
+  }
+  function playClip(url) {
+    if (!clipCache[url]) clipCache[url] = new Audio(url);
+    const a = clipCache[url];
+    a.currentTime = 0;
+    return new Promise((resolve, reject) => {
+      a.onended = resolve;
+      a.onerror = () => reject(new Error('clip missing'));
+      a.play().catch(reject);
+    });
+  }
+  async function playRecorded(recipe) {
+    // preload every clip first so playback isn't interrupted by network fetches
+    const urls = recipe
+      .filter((p) => p.f === undefined || /\p{L}/u.test(p.f))
+      .map(clipUrl);
+    urls.forEach((url) => { if (!clipCache[url]) clipCache[url] = new Audio(url); });
+    for (const url of urls) await playClip(url);
+  }
+  function stopClips() { Object.values(clipCache).forEach((a) => a.pause()); }
+
+  function speak(text, recipe) {
+    return (async () => {
+      if (!text) { await sleep(30); return; }
+      if (speedMode === 'turbo' || muted) { await sleep(30); return; }
+      await voiceReady; // recorded mode decided before the first word
+      if (manifest) {
+        // recorded mode: play clips; a missing clip is skipped, never TTS-mixed
+        try {
+          if (recipe && recipe.length) { await playRecorded(recipe); return; }
+          const file = manifest[text];
+          if (file) { await playClip('audio/' + lang + '/' + file); return; }
+        } catch (e) { /* clip unavailable: stay silent rather than mix voices */ }
+        return;
+      }
+      await speakTTS(text);
+    })();
+  }
+
+  function speakTTS(text) {
     return new Promise((resolve) => {
-      if (!text) { setTimeout(resolve, 30); return; }
-      if (speedMode === 'turbo' || muted || !('speechSynthesis' in window)) { setTimeout(resolve, 30); return; }
+      if (!('speechSynthesis' in window)) { setTimeout(resolve, 600 + text.length * 18); return; }
       speechSynthesis.cancel();
       speechSynthesis.resume(); // Chrome sometimes sticks in a paused state
       const u = new SpeechSynthesisUtterance(loc(text));
@@ -299,7 +362,7 @@
         stepIndex++;
         if (st.say) subtitle.textContent = st.say;
         if (st.clear) abacus.clear();
-        await speak(st.say);
+        await speak(st.say, st.audio);
         if (st.place >= 1) {
           abacus.setRodByPlace(st.place, st.digit);
           await sleep(pace.bead);
@@ -332,7 +395,7 @@
     if (st && st.say) {
       subtitle.className = '';
       subtitle.textContent = st.say;
-      speak(st.say);
+      speak(st.say, st.audio);
     }
     setPlayButtons(false);
   }
@@ -351,13 +414,13 @@
 
   function readProblem(aId, opId, bId) {
     const a = Number($(aId).value), b = Number($(bId).value);
-    const op = $(opId).value === '−' ? '-' : $(opId).value === '×' ? '*' : '+';
+    const op = $(opId).value === '−' ? '-' : $(opId).value === '×' ? '*' : $(opId).value === '÷' ? '/' : '+';
     if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0) return null;
     return { a, op, b };
   }
 
   function displayProblem(a, op, b) {
-    const sym = op === '+' ? '+' : op === '-' ? '−' : '×';
+    const sym = op === '+' ? '+' : op === '-' ? '−' : op === '*' ? '×' : '÷';
     $('problem-display').textContent = `${a} ${sym} ${b} = ?`;
   }
 
@@ -398,7 +461,7 @@
     const cap = Math.min(max, Math.pow(10, digits) - 1);
     const pick = () => Math.floor(Math.random() * cap) + 1;
     const r = Math.random();
-    const op = r < 0.4 ? '+' : r < 0.8 ? '-' : '*';
+    const op = r < 0.3 ? '+' : r < 0.6 ? '-' : r < 0.85 ? '*' : '/';
     let a = pick(), b = pick();
     if (op === '*') {
       // keep the product within the rods
@@ -407,10 +470,17 @@
       a = Math.floor(Math.random() * mcap) + 1;
       b = Math.floor(Math.random() * mcap) + 1;
     }
+    if (op === '/') {
+      // exact division: choose divisor and quotient, dividend is the product
+      b = 2 + Math.floor(Math.random() * 8); // 2..9
+      const qcap = Math.floor(cap / b);
+      const q = qcap > 1 ? 1 + Math.floor(Math.random() * (qcap - 1)) : 1;
+      a = b * q;
+    }
     if (op === '-' && a < b) { const t = a; a = b; b = t; }
     $('num-a').value = a;
     $('num-b').value = b;
-    $('operator').value = op === '-' ? '−' : op === '*' ? '×' : '+';
+    $('operator').value = op === '-' ? '−' : op === '*' ? '×' : op === '/' ? '÷' : '+';
     $('watch-error').textContent = '';
   }
   randomProblem();
@@ -606,6 +676,107 @@
     if (tourRunning) { tourRunning = false; if ('speechSynthesis' in window) speechSynthesis.cancel(); }
     else runTour();
   });
+
+  // ---------- introduction scenes (narrated story with abacus animation) ----------
+  let introRunning = false;
+  function introScenes() {
+    const rodPause = Math.max(PACE[speedMode].bead, 400);
+    return [
+      { key: 'before_numbers', dim: true, act: async () => { abacus.clear(); } },
+      { key: 'idea_spread', dim: true, act: async () => {} },
+      {
+        // soroban appears: frame highlight, abacus undimmed and empty
+        key: 'meet_soroban', hl: 'frame',
+        act: async () => { abacus.clear(); await sleep(600); },
+      },
+      {
+        // rods light up one by one, left to right, with their place labels
+        key: 'rods',
+        act: async () => {
+          abacus.clear();
+          for (let i = 0; i < abacus.rodEls.length && introRunning; i++) {
+            abacus.rodEls[i].classList.add('hl');
+            await sleep(rodPause);
+          }
+        },
+      },
+      {
+        // the beam: one earth bead rises to touch it and gets counted
+        key: 'beam', hl: 'beam',
+        act: async () => {
+          abacus.clear();
+          await sleep(700);
+          if (introRunning) abacus.setRodByPlace(1, 1);
+        },
+      },
+      {
+        // heaven bead worth five, then the four earth beads build 0-9 on one rod
+        key: 'beads',
+        act: async () => {
+          abacus.clear();
+          abacus.highlight('heaven');
+          await sleep(600);
+          if (introRunning) abacus.setRodByPlace(1, 5); // the five bead comes down
+          await sleep(rodPause * 2);
+          abacus.highlight('earth');
+          for (const d of [1, 2, 3, 4]) { // earth beads rise one at a time
+            if (!introRunning) break;
+            abacus.setRodByPlace(1, d);
+            await sleep(rodPause);
+          }
+          if (introRunning) {
+            abacus.setRodByPlace(1, 9); // five bead + four earth beads
+            await sleep(rodPause * 2);
+          }
+        },
+      },
+      { key: 'why_it_matters', dim: true, act: async () => { abacus.clear(); } },
+      {
+        // back to zero, ready for the child's first number
+        key: 'invitation',
+        act: async () => { abacus.clear(); },
+      },
+    ];
+  }
+
+  async function runIntro() {
+    introRunning = true;
+    playing = true;
+    abacus.locked = true;
+    $('btn-intro').textContent = 'Stop intro';
+    const scenes = introScenes();
+    try {
+      for (const sc of scenes) {
+        if (!introRunning) break;
+        $('abacus').classList.toggle('dim', !!sc.dim);
+        if (sc.hl) abacus.highlight(sc.hl); else abacus.highlight(null);
+        const text = T.intro.scenes[sc.key];
+        subtitle.className = '';
+        subtitle.textContent = text;
+        // animation runs alongside the narration, not after it
+        await Promise.all([speak(text), sc.act()]);
+        await sleep(Math.max(PACE[speedMode].line, 300));
+      }
+    } finally {
+      introRunning = false;
+      playing = false;
+      abacus.locked = false;
+      abacus.highlight(null);
+      $('abacus').classList.remove('dim');
+      $('btn-intro').textContent = 'Introduction';
+    }
+  }
+  if (T.intro) {
+    $('btn-intro').hidden = false;
+    $('btn-intro').addEventListener('click', () => {
+      if (introRunning) {
+        introRunning = false;
+        if ('speechSynthesis' in window) speechSynthesis.cancel();
+        stopClips();
+      }
+      else runIntro();
+    });
+  }
 
   // ---------- mode switch ----------
   const MODES = ['watch', 'practice', 'drills'];

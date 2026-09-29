@@ -28,7 +28,34 @@
     const w = (T.meta && T.meta.operator_words) || {};
     if (operator === '+') return w.plus || 'plus';
     if (operator === '-') return w.minus || 'minus';
-    return w.times || 'times';
+    if (operator === '*') return w.times || 'times';
+    return w.divide || 'divided by';
+  }
+
+  // build an audio clip recipe for a filled template:
+  //   {s: text}  -> whole-sentence clip
+  //   {f: text}  -> fragment clip (literal text or non-numeric var like a place name)
+  //   {n: value} -> number clip (0-9, spoken digit by digit for any size)
+  function recipeOf(template, vars) {
+    vars = vars || {};
+    const parts = String(template).split(/(\{\w+\})/);
+    const recipe = [];
+    for (const part of parts) {
+      if (!part) continue;
+      const m = part.match(/^\{(\w+)\}$/);
+      if (!m) { recipe.push({ f: part }); continue; }
+      const v = vars[m[1]];
+      if (v === undefined) { recipe.push({ f: part }); continue; }
+      if (Number.isInteger(v) && v >= 0) {
+        // numbers are spoken digit by digit (clips only cover 0-9)
+        String(v).split('').forEach((ch) => recipe.push({ n: Number(ch) }));
+      } else recipe.push({ f: String(v) });
+    }
+    return recipe.length === 1 && recipe[0].s === undefined && !/\{/.test(template) ? [{ s: template }] : recipe;
+  }
+
+  function narrate(template, vars) {
+    return { say: fill(template, vars), audio: recipeOf(template, vars) };
   }
 
   function pick(arr) {
@@ -57,24 +84,29 @@
       operator_word: operatorWord(T, operator),
     };
 
-    if (operator !== '+' && operator !== '-' && operator !== '*') {
-      throw new Error('Only +, - and * are supported for now');
+    if (operator !== '+' && operator !== '-' && operator !== '*' && operator !== '/') {
+      throw new Error('Only +, -, * and / are supported for now');
     }
-    function early(say) {
-      return { steps: [{ say, place: 0, digit: null }], result: null };
+    function early(line) {
+      const step = line && typeof line === 'object' ? line : { say: line, audio: null };
+      return { steps: [{ say: step.say, audio: step.audio || null, place: 0, digit: null }], result: null };
     }
     if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0) {
       return early(T.special_cases.invalid_input);
     }
     if (a > this.maxValue || b > this.maxValue) {
-      return early(fill(T.special_cases.overflow, { total_rods: this.rods }));
+      return early(narrate(T.special_cases.overflow, { total_rods: this.rods }));
     }
-    const result = operator === '+' ? a + b : operator === '-' ? a - b : a * b;
+    if (operator === '/' && b === 0) {
+      return early(T.division.by_zero);
+    }
+    const result = operator === '+' ? a + b : operator === '-' ? a - b
+      : operator === '*' ? a * b : Math.floor(a / b);
     if (result < 0) {
       return early(T.special_cases.negative_result);
     }
     if (result > this.maxValue) {
-      return early(fill(T.special_cases.overflow, { total_rods: this.rods }));
+      return early(narrate(T.special_cases.overflow, { total_rods: this.rods }));
     }
 
     const core = this._core(steps);
@@ -87,6 +119,11 @@
       for (let i = 0; i < s.length; i++) addAt(place + (s.length - 1 - i), Number(s[i]));
     }
 
+    function subNumberAt(place, n) {
+      const s = String(n);
+      for (let i = 0; i < s.length; i++) subAt(place + (s.length - 1 - i), Number(s[i]));
+    }
+
     function applyNumber(n) {
       const s = String(n);
       push(T.session.start_from_left, 0, null);
@@ -94,7 +131,7 @@
         const d = Number(s[i]);
         const place = s.length - i;
         if (d === 0) continue;
-        push(fill(T.session.next_digit, { place_name: placeName(T, place), digit: d }), 0, null);
+        push(narrate(T.session.next_digit, { place_name: placeName(T, place), digit: d }), 0, null);
         if (operator === '+') addAt(place, d);
         else subAt(place, d);
       }
@@ -107,15 +144,15 @@
     if (operator === '*') {
       // school method: every digit of a times every digit of b, one digit
       // pair at a time, accumulated left to right with the narrated add methods
-      push(fill(T.session.problem_intro, vars), 0, null);
-      push(fill(T.multiplication.intro, vars), 0, null);
+      push(narrate(T.session.problem_intro, vars), 0, null);
+      push(narrate(T.multiplication.intro, vars), 0, null);
       let acc = 0;
       const as = String(a), bs = String(b);
       for (let i = 0; i < as.length; i++) {
         const da = Number(as[i]);
         const pa = as.length - i;
         if (da === 0) continue;
-        push(fill(T.session.next_digit, {
+        push(narrate(T.session.next_digit, {
           place_name: placeName(T, pa), digit: da,
         }), 0, null);
         for (let j = 0; j < bs.length; j++) {
@@ -124,21 +161,72 @@
           if (db === 0) continue;
           const partial = da * db;
           const place = pa + pb - 1;
-          push(fill(T.multiplication.partial, {
+          push(narrate(T.multiplication.partial, {
             digit: da, digit2: db, partial,
           }), 0, null);
           addNumberAt(place, partial);
           acc += partial * Math.pow(10, place - 1);
-          push(fill(T.session.current_value, { current_value: acc }), 0, null);
+          push(narrate(T.session.current_value, { current_value: acc }), 0, null);
         }
+      }
+    } else if (operator === '/') {
+      // long division, left to right: bring digits down, ask how many times b
+      // fits, subtract q*b, and collect the quotient digit by digit
+      push(narrate(T.session.problem_intro, vars), 0, null);
+      push(narrate(T.division.intro, vars), 0, null);
+      const as = String(a);
+      let cur = 0, ranOnce = false, qd = '';
+      for (let i = 0; i < as.length; i++) {
+        cur = cur * 10 + Number(as[i]);
+        if (!ranOnce && cur < b) continue; // still gathering leading digits
+        ranOnce = true;
+        const q = Math.floor(cur / b);
+        const product = q * b;
+        const rem = cur - product;
+        push(narrate(T.division.work, { cur }), 0, null);
+        const cs = String(cur);
+        for (let k = 0; k < cs.length; k++) {
+          push(narrate(T.session.set_digit, {
+            digit: Number(cs[k]), place_name: placeName(T, cs.length - k),
+          }), cs.length - k, Number(cs[k]));
+        }
+        push(narrate(T.division.ask, Object.assign({}, vars, { cur })), 0, null);
+        push(narrate(T.division.times, { q, second_number: b, product }), 0, null);
+        if (product > 0) subNumberAt(1, product);
+        push(narrate(T.division.left, { rem }), 0, null);
+        qd += q;
+        cur = rem;
+      }
+      if (!ranOnce) {
+        // a < b: quotient 0, remainder a
+        push(narrate(T.division.work, { cur: a }), 0, null);
+        push(narrate(T.division.ask, Object.assign({}, vars, { cur: a })), 0, null);
+        push(narrate(T.division.times, { q: 0, second_number: b, product: 0 }), 0, null);
+        push(narrate(T.division.left, { rem: a }), 0, null);
+        qd = '0';
+        cur = a;
+      }
+      const remainder = operator === '/' ? a - Math.floor(a / b) * b : 0;
+      const quotient = Number(qd);
+      if (remainder > 0) {
+        push(narrate(T.division.remainder, Object.assign({}, vars, {
+          quotient, rem: remainder,
+        })), 0, null);
+      }
+      steps.push({ say: T.session.clearing, place: 0, digit: null, clear: true });
+      const qs = String(quotient);
+      for (let k = 0; k < qs.length; k++) {
+        push(narrate(T.session.set_digit, {
+          digit: Number(qs[k]), place_name: placeName(T, qs.length - k),
+        }), qs.length - k, Number(qs[k]));
       }
     } else {
       setNumber(a, vars);
-      push(fill(T.session.problem_intro, vars), 0, null);
+      push(narrate(T.session.problem_intro, vars), 0, null);
       applyNumber(b);
     }
-    push(fill(T.session.result, { result }), 0, null);
-    push(fill(T.session.problem_complete, Object.assign({}, vars, { result })), 0, null);
+    push(narrate(T.session.result, { result }), 0, null);
+    push(narrate(T.session.problem_complete, Object.assign({}, vars, { result })), 0, null);
     return { steps, result };
   };
 
@@ -150,7 +238,8 @@
     const self = this;
 
     function push(say, place, digit) {
-      steps.push({ say, place, digit });
+      const step = typeof say === 'object' && say !== null ? say : { say };
+      steps.push({ say: step.say, audio: step.audio || null, place, digit });
       if (place >= 1) state[place - 1] = digit;
     }
 
@@ -162,16 +251,16 @@
     function setDigit(place, d) {
       if (d === 0) return;
       const pn = placeName(T, place);
-      push(fill(T.session.set_digit, { digit: d, place_name: pn }), place, d);
+      push(narrate(T.session.set_digit, { digit: d, place_name: pn }), place, d);
     }
 
     function setNumber(n, vars) {
-      push(fill(T.session.set_number, vars), 0, null);
+      push(narrate(T.session.set_number, vars), 0, null);
       const s = String(n);
       for (let i = 0; i < s.length; i++) {
         setDigit(s.length - i, Number(s[i]));
       }
-      push(fill(T.session.current_value, { current_value: n }), 0, null);
+      push(narrate(T.session.current_value, { current_value: n }), 0, null);
     }
 
     // say a method intro only when the method changes, not per digit
@@ -179,7 +268,7 @@
     function methodIntro(key, template, vars) {
       if (lastMethod === key) return;
       lastMethod = key;
-      push(fill(template, vars), 0, null);
+      push(narrate(template, vars), 0, null);
     }
 
     // --- addition ---
@@ -197,16 +286,16 @@
           // direct addition (covers earth, heaven+earth)
           const op = T.operations.direct_addition;
           methodIntro('direct_addition', op.intro, { number: d, place_name: pn });
-          push(fill(op.steps.add, { number: d, place_name: pn }), place, t);
-          push(fill(op.outro, { digit: t, place_name: pn }), 0, null);
+          push(narrate(op.steps.add, { number: d, place_name: pn }), place, t);
+          push(narrate(op.outro, { digit: t, place_name: pn }), 0, null);
         } else {
           // five complement: add 5, remove 5-d
           const comp = 5 - d;
           const op = T.operations.five_complement_addition;
           methodIntro('five_complement_addition', op.intro, { number: d, place_name: pn });
-          push(fill(op.steps.add_five, { place_name: pn }), place, c + 5);
-          push(fill(op.steps.subtract_complement, { complement_5: comp, place_name: pn }), place, t);
-          push(fill(op.outro, { digit: t, place_name: pn }), 0, null);
+          push(narrate(op.steps.add_five, { place_name: pn }), place, c + 5);
+          push(narrate(op.steps.subtract_complement, { complement_5: comp, place_name: pn }), place, t);
+          push(narrate(op.outro, { digit: t, place_name: pn }), 0, null);
         }
         return;
       }
@@ -216,13 +305,13 @@
       const op = T.operations.ten_complement_addition;
       const nextPn = placeName(T, place + 1);
       if (digitAt(place + 1) === 9 && place + 1 <= self.rods) {
-        push(fill(T.special_cases.carry_cascade, { next_place_name: nextPn }), 0, null);
+        push(narrate(T.special_cases.carry_cascade, { next_place_name: nextPn }), 0, null);
       }
       methodIntro('ten_complement_addition', op.intro, { number: d, place_name: pn });
-      push(fill(op.steps.carry, { next_place_name: nextPn }), 0, null);
+      push(narrate(op.steps.carry, { next_place_name: nextPn }), 0, null);
       addAt(place + 1, 1);
-      push(fill(op.steps.subtract_complement, { complement_10: comp, place_name: pn }), place, t - 10);
-      push(fill(op.outro, { digit: t - 10, place_name: pn, next_place_name: nextPn }), 0, null);
+      push(narrate(op.steps.subtract_complement, { complement_10: comp, place_name: pn }), place, t - 10);
+      push(narrate(op.outro, { digit: t - 10, place_name: pn, next_place_name: nextPn }), 0, null);
     }
 
     // --- subtraction ---
@@ -239,16 +328,16 @@
           // direct subtraction (earth only, or heaven + earth)
           const op = T.operations.direct_subtraction;
           methodIntro('direct_subtraction', op.intro, { number: d, place_name: pn });
-          push(fill(op.steps.subtract, { number: d, place_name: pn }), place, t);
-          push(fill(op.outro, { digit: t, place_name: pn }), 0, null);
+          push(narrate(op.steps.subtract, { number: d, place_name: pn }), place, t);
+          push(narrate(op.outro, { digit: t, place_name: pn }), 0, null);
         } else {
           // five complement: remove 5, add back 5-d
           const comp = 5 - d;
           const op = T.operations.five_complement_subtraction;
           methodIntro('five_complement_subtraction', op.intro, { number: d, place_name: pn });
-          push(fill(op.steps.subtract_five, { place_name: pn }), place, c - 5);
-          push(fill(op.steps.add_complement, { complement_5: comp, place_name: pn }), place, t);
-          push(fill(op.outro, { digit: t, place_name: pn }), 0, null);
+          push(narrate(op.steps.subtract_five, { place_name: pn }), place, c - 5);
+          push(narrate(op.steps.add_complement, { complement_5: comp, place_name: pn }), place, t);
+          push(narrate(op.outro, { digit: t, place_name: pn }), 0, null);
         }
         return;
       }
@@ -259,14 +348,14 @@
       const nextPn = placeName(T, place + 1);
       if (place + 1 > self.rods || digitAt(place + 1) === 0) {
         if (place + 1 <= self.rods) {
-          push(fill(T.special_cases.borrow_cascade, { next_place_name: nextPn }), 0, null);
+          push(narrate(T.special_cases.borrow_cascade, { next_place_name: nextPn }), 0, null);
         }
       }
       methodIntro('ten_complement_subtraction', op.intro, { number: d, place_name: pn });
-      push(fill(op.steps.borrow, { next_place_name: nextPn }), 0, null);
+      push(narrate(op.steps.borrow, { next_place_name: nextPn }), 0, null);
       subAt(place + 1, 1);
-      push(fill(op.steps.add_complement, { complement_10: comp, place_name: pn }), place, t + 10);
-      push(fill(op.outro, { digit: t + 10, place_name: pn, next_place_name: nextPn }), 0, null);
+      push(narrate(op.steps.add_complement, { complement_10: comp, place_name: pn }), place, t + 10);
+      push(narrate(op.outro, { digit: t + 10, place_name: pn, next_place_name: nextPn }), 0, null);
     }
 
     return { state, push, digitAt, setDigit, setNumber, addAt, subAt };
@@ -282,7 +371,7 @@
       return early(T.special_cases.invalid_input);
     }
     if (from > this.maxValue || to > this.maxValue) {
-      return early(fill(T.special_cases.overflow, { total_rods: this.rods }));
+      return early(narrate(T.special_cases.overflow, { total_rods: this.rods }));
     }
     const steps = [];
     const core = this._core(steps);
@@ -300,11 +389,12 @@
       else core.subAt(1, 1);
       // counting says one sentence per number: drop the method narration and
       // label the bead moves with the running value instead
-      const valueLine = fill(T.session.current_value, { current_value: v });
+      const valueStep = narrate(T.session.current_value, { current_value: v });
       let said = false;
       for (let k = before; k < steps.length; k++) {
         if (steps[k].place >= 1) {
-          steps[k].say = said ? '' : valueLine;
+          steps[k].say = said ? '' : valueStep.say;
+          steps[k].audio = said ? null : valueStep.audio;
           said = true;
         }
       }
@@ -321,31 +411,28 @@
         const resetTpl = inc > 0
           ? T.operations.ten_complement_addition.steps.subtract_complement
           : T.operations.ten_complement_subtraction.steps.add_complement;
-        const newSteps = [{
-          say: fill(carryTpl, { next_place_name: placeName(T, carryPlace) }),
-          place: 0,
-          digit: null,
-        }];
+        const newSteps = [Object.assign(
+          narrate(carryTpl, { next_place_name: placeName(T, carryPlace) }),
+          { place: 0, digit: null }
+        )];
         const resetPlaces = kept
           .slice(before)
           .filter((st) => st.place >= 1 && st.place < carryPlace)
           .map((st) => st.place)
           .sort((x, y) => x - y);
         resetPlaces.forEach((p) => {
-          newSteps.push({
-            say: fill(resetTpl, { complement_10: 9, place_name: placeName(T, p) }),
-            place: 0,
-            digit: null,
-          });
+          newSteps.push(Object.assign(
+            narrate(resetTpl, { complement_10: 9, place_name: placeName(T, p) }),
+            { place: 0, digit: null }
+          ));
         });
         steps.splice.apply(steps, [before, 0].concat(newSteps));
       }
       // cue the action before the beads move: "Now add 1." / "Now subtract 1."
-      steps.splice(before, 0, {
-        say: inc > 0 ? (T.session.count_add || 'Now add 1.') : (T.session.count_subtract || 'Now subtract 1.'),
-        place: 0,
-        digit: null,
-      });
+      steps.splice(before, 0, Object.assign(
+        narrate(inc > 0 ? (T.session.count_add || 'Now add 1.') : (T.session.count_subtract || 'Now subtract 1.'), {}),
+        { place: 0, digit: null }
+      ));
       if (v === to) break;
     }
     return { steps, result: to };
@@ -359,33 +446,36 @@
       second_number: b,
       operator_word: operatorWord(T, operator),
     };
-    const result = operator === '+' ? a + b : operator === '-' ? a - b : a * b;
+    if (operator === '/' && b === 0) {
+      return early(T.division.by_zero);
+    }
+    const result = operator === '+' ? a + b : operator === '-' ? a - b
+      : operator === '*' ? a * b : Math.floor(a / b);
     const steps = [];
     steps.push({ say: T.session.clearing, place: 0, digit: null, clear: true });
     const state = new Array(this.rods).fill(0);
     const s = String(a);
-    steps.push({ say: fill(T.session.set_number, vars), place: 0, digit: null });
+    steps.push(narrate(T.session.set_number, vars));
     for (let i = 0; i < s.length; i++) {
       const place = s.length - i;
       const d = Number(s[i]);
       if (d === 0) continue;
       state[place - 1] = d;
-      steps.push({
-        say: fill(T.session.set_digit, { digit: d, place_name: placeName(T, place) }),
-        place,
-        digit: d,
-      });
+      const n = narrate(T.session.set_digit, { digit: d, place_name: placeName(T, place) });
+      steps.push({ say: n.say, audio: n.audio, place, digit: d });
     }
-    steps.push({ say: fill(T.session.problem_intro, vars), place: 0, digit: null });
+    steps.push(narrate(T.session.problem_intro, vars));
     // cue for the biggest digit of b that changes beads
     const bs = String(b);
     let cue = null;
     if (operator === '*') {
-      cue = fill(T.feedback.your_turn_multiply, vars);
+      cue = narrate(T.feedback.your_turn_multiply, vars);
+    } else if (operator === '/') {
+      cue = narrate(T.division.your_turn_divide, vars);
     } else {
       for (let i = bs.length; i >= 1; i--) {
         if (Number(bs[i - 1]) !== 0) {
-          cue = fill(T.feedback.your_turn, {
+          cue = narrate(T.feedback.your_turn, {
             number: Number(bs[i - 1]),
             place_name: placeName(T, bs.length - i + 1),
           });
@@ -393,7 +483,7 @@
         }
       }
     }
-    if (cue) steps.push({ say: cue, place: 0, digit: null });
+    if (cue) steps.push({ say: cue.say, audio: cue.audio, place: 0, digit: null });
     return { steps, result };
   };
 
