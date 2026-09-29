@@ -107,7 +107,7 @@ async function pickVoice(langCode, nameHint) {
   if (process.env['VOICE_' + langCode.toUpperCase()]) return process.env['VOICE_' + langCode.toUpperCase()];
   const res = await api('/voices', { headers: { 'xi-api-key': KEY } });
   const voices = (await res.json()).voices || [];
-  const match = voices.find((v) => new RegExp(nameHint, 'i').test(v.name))
+  let match = voices.find((v) => new RegExp(nameHint, 'i').test(v.name))
     || voices.find((v) => (v.labels && v.labels.language || '').toLowerCase().startsWith(langCode));
   if (!match) {
     // multilingual v2 voices speak any language; fall back to the first voice
@@ -118,13 +118,14 @@ async function pickVoice(langCode, nameHint) {
   return match.voice_id;
 }
 
-const NAME_HINT = { en: 'english|emma|arthur|brian', bn: 'bengali|bangla|lily', hi: 'hindi|viraj|bunty' };
+const NAME_HINT = { en: 'english|emma|arthur|brian', bn: 'bengali|bangla|lily', hi: 'hindi|viraj|bunty', es: 'spanish|español|carmen|maria' };
 
 // digits are synthesized as spoken words so TTS uses the right language
 const NUM_WORDS = {
   en: ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'],
   bn: ['শূন্য', 'এক', 'দুই', 'তিন', 'চার', 'পাঁচ', 'ছয়', 'সাত', 'আট', 'নয়'],
   hi: ['शून्य', 'एक', 'दो', 'तीन', 'चार', 'पाँच', 'छह', 'सात', 'आठ', 'नौ'],
+  es: ['cero', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'],
 };
 
 async function synthesize(voiceId, text, file) {

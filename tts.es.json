@@ -1,0 +1,223 @@
+{
+  "meta": {
+    "description": "Plantillas de narración para un ábaco virtual tipo soroban. Cada texto está escrito para ser leído en voz alta: sin símbolos, frases completas.",
+    "version": "1.0.0",
+    "locale": "es",
+    "placeholders": {
+      "place": "Posición de la varilla, 1 = unidades, 2 = decenas, y así sucesivamente (de derecha a izquierda).",
+      "place_name": "Nombre hablado de la varilla, de place_names (por ejemplo 'decenas').",
+      "next_place": "place + 1, la varilla de la izquierda.",
+      "next_place_name": "Nombre hablado de la siguiente varilla.",
+      "number": "Dígito que se suma o resta, 1-9.",
+      "complement_5": "5 - number.",
+      "complement_10": "10 - number.",
+      "count": "Cuántas cuentas se están moviendo.",
+      "digit": "Dígito actual en una varilla.",
+      "first_number": "Primer número del problema.",
+      "second_number": "Segundo número del problema.",
+      "operator_word": "'más' o 'menos'.",
+      "current_value": "Valor completo que muestra el ábaco ahora.",
+      "result": "Respuesta final.",
+      "user_answer": "Respuesta escrita por el estudiante.",
+      "total_rods": "Número de varillas del ábaco."
+    },
+    "usage_notes": [
+      "Reemplaza los marcadores antes de enviar el texto al motor de voz.",
+      "Los números se insertan como dígitos; la mayoría de los motores los leen correctamente.",
+      "Cada plantilla es una frase o un par de frases cortas para sincronizar la animación por paso.",
+      "Donde una clave tiene formas 'one' y 'many', usa 'one' cuando count es 1."
+    ],
+    "operator_words": {
+      "plus": "más",
+      "minus": "menos",
+      "times": "por",
+      "divide": "dividido por"
+    }
+  },
+  "place_names": {
+    "1": "unidades",
+    "2": "decenas",
+    "3": "centenas",
+    "4": "millares",
+    "5": "decenas de millar",
+    "6": "centenas de millar",
+    "7": "millones",
+    "8": "decenas de millón",
+    "9": "centenas de millón",
+    "10": "millardos",
+    "fallback": "varilla número {place}"
+  },
+  "glossary": {
+    "abacus": "Un ábaco es una herramienta de cálculo hecha de varillas y cuentas. Cada posición de una cuenta representa un número.",
+    "rod": "Una varilla es un alambre vertical que sostiene las cuentas. Cada varilla representa un valor posicional, como unidades, decenas o centenas.",
+    "bead": "Una cuenta es una pieza pequeña que se desliza por la varilla. Su posición nos dice qué número muestra.",
+    "beam": "El travesaño es la barra horizontal del medio. Las cuentas que tocan el travesaño se cuentan. Las que están lejos del travesaño no se cuentan.",
+    "heaven_bead": "La cuenta superior está encima del travesaño. Cuando lo toca, vale cinco.",
+    "earth_bead": "Las cuentas inferiores están debajo del travesaño. Cada una que toca el travesaño vale uno. Hay cuatro en cada varilla.",
+    "place_value": "El valor posicional significa que cada varilla tiene su propio valor. La varilla de la derecha son las unidades, la siguiente las decenas, luego las centenas, y así sucesivamente.",
+    "carry": "Llevar significa pasar uno a la siguiente varilla de la izquierda, porque la varilla actual está llena.",
+    "borrow": "Pedir prestado significa tomar uno de la siguiente varilla de la izquierda, porque la varilla actual no tiene suficiente.",
+    "complement": "Un complemento es el número que completa un objetivo. El complemento de cinco de 3 es 2, porque 3 más 2 hace 5. El complemento de diez de 3 es 7, porque 3 más 7 hace 10.",
+    "five_complement": "El método del complemento de cinco ayuda cuando no hay suficientes cuentas inferiores libres. Usamos la cuenta superior, que vale cinco, y corregimos la diferencia.",
+    "ten_complement": "El método del complemento de diez ayuda cuando una varilla pasa de nueve o le falta. Movemos una cuenta en la siguiente varilla, que aquí vale diez, y corregimos la diferencia.",
+    "clear": "Limpiar el ábaco significa alejar todas las cuentas del travesaño, para que cada varilla muestre cero."
+  },
+  "bead_actions": {
+    "earth_add": {
+      "one": "Sube una cuenta inferior hacia el travesaño en la varilla de {place_name}.",
+      "many": "Sube {count} cuentas inferiores hacia el travesaño en la varilla de {place_name}."
+    },
+    "earth_remove": {
+      "one": "Baja una cuenta inferior, alejándola del travesaño, en la varilla de {place_name}.",
+      "many": "Baja {count} cuentas inferiores, alejándolas del travesaño, en la varilla de {place_name}."
+    },
+    "heaven_add": "Baja la cuenta superior hasta el travesaño en la varilla de {place_name}. Eso suma cinco.",
+    "heaven_remove": "Sube la cuenta superior, alejándola del travesaño, en la varilla de {place_name}. Eso quita cinco.",
+    "heaven_and_earth_add": "Baja la cuenta superior y sube {count} cuentas inferiores en la varilla de {place_name}.",
+    "heaven_and_earth_remove": "Sube la cuenta superior y baja {count} cuentas inferiores en la varilla de {place_name}."
+  },
+  "session": {
+    "welcome": "Bienvenido al ábaco. Aprendamos juntos, paso a paso.",
+    "ready": "El ábaco está limpio. Todas las varillas muestran cero.",
+    "enter_number": "Escribe el primer número para ponerlo en el ábaco.",
+    "set_number": "Pongamos {first_number} en el ábaco.",
+    "set_digit": "Pon {digit} en la varilla de {place_name}.",
+    "problem_intro": "Resolvamos {first_number} {operator_word} {second_number}.",
+    "current_value": "El ábaco ahora muestra {current_value}.",
+    "next_digit": "Ahora trabajemos con el dígito de las {place_name}, {digit}.",
+    "start_from_left": "Empezamos por el dígito de más a la izquierda y avanzamos a la derecha.",
+    "start_from_right": "Empezamos por el dígito de más a la derecha y avanzamos a la izquierda.",
+    "result": "La respuesta es {result}.",
+    "result_check": "Mira las cuentas. El ábaco muestra {result}.",
+    "problem_complete": "Muy bien. {first_number} {operator_word} {second_number} es igual a {result}.",
+    "clearing": "Limpiemos el ábaco.",
+    "count_add": "Ahora suma 1.",
+    "count_subtract": "Ahora resta 1.",
+    "cleared": "Todas las cuentas están lejos del travesaño. El ábaco muestra cero.",
+    "replay_prompt": "¿Quieres verlo otra vez?",
+    "next_problem": "¿Listo para el siguiente problema?",
+    "goodbye": "Buena práctica hoy. Hasta la próxima."
+  },
+  "operations": {
+    "direct_addition": {
+      "intro": "Esta es suma directa. Hay espacio suficiente en la varilla de {place_name}, así que simplemente sumamos {number}.",
+      "steps": {
+        "add": "Suma {number} en la varilla de {place_name}."
+      },
+      "explain": "Podemos sumar {number} directamente porque la varilla de {place_name} tiene suficientes cuentas libres.",
+      "outro": "La varilla de {place_name} ahora muestra {digit}."
+    },
+    "direct_subtraction": {
+      "intro": "Esta es resta directa. La varilla de {place_name} tiene suficientes cuentas, así que simplemente quitamos {number}.",
+      "steps": {
+        "subtract": "Resta {number} en la varilla de {place_name}."
+      },
+      "explain": "Podemos restar {number} directamente porque la varilla de {place_name} tiene al menos {number}.",
+      "outro": "La varilla de {place_name} ahora muestra {digit}."
+    },
+    "five_complement_addition": {
+      "intro": "Esto necesita el complemento de cinco. Queremos sumar {number}, pero no hay suficientes cuentas inferiores libres.",
+      "steps": {
+        "add_five": "Primero, suma cinco bajando la cuenta superior en la varilla de {place_name}.",
+        "subtract_complement": "Luego, resta {complement_5} en la varilla de {place_name}."
+      },
+      "explain": "Sumar {number} es lo mismo que sumar cinco y quitar {complement_5}. Cinco menos {complement_5} es {number}.",
+      "outro": "La varilla de {place_name} ahora muestra {digit}."
+    },
+    "five_complement_subtraction": {
+      "intro": "Esto necesita el complemento de cinco. Queremos restar {number}, pero no hay suficientes cuentas inferiores para quitar.",
+      "steps": {
+        "subtract_five": "Primero, resta cinco subiendo la cuenta superior en la varilla de {place_name}.",
+        "add_complement": "Luego, suma {complement_5} en la varilla de {place_name}."
+      },
+      "explain": "Restar {number} es lo mismo que restar cinco y devolver {complement_5}. Cinco menos {complement_5} es {number}.",
+      "outro": "La varilla de {place_name} ahora muestra {digit}."
+    },
+    "ten_complement_addition": {
+      "intro": "Esto necesita el complemento de diez. Sumar {number} en la varilla de {place_name} pasa de nueve, así que llevamos.",
+      "steps": {
+        "carry": "Primero, lleva uno. Suma uno en la varilla de {next_place_name}.",
+        "subtract_complement": "Luego, resta {complement_10} en la varilla de {place_name}."
+      },
+      "explain": "Sumar {number} es lo mismo que sumar diez y quitar {complement_10}. Uno en la varilla de {next_place_name} vale diez.",
+      "outro": "La varilla de {place_name} ahora muestra {digit}, y la varilla de {next_place_name} tiene uno más."
+    },
+    "ten_complement_subtraction": {
+      "intro": "Esto necesita el complemento de diez. La varilla de {place_name} tiene menos de {number}, así que pedimos prestado.",
+      "steps": {
+        "borrow": "Primero, pide prestado uno. Resta uno en la varilla de {next_place_name}.",
+        "add_complement": "Luego, suma {complement_10} en la varilla de {place_name}."
+      },
+      "explain": "Restar {number} es lo mismo que restar diez y devolver {complement_10}. Uno en la varilla de {next_place_name} vale diez.",
+      "outro": "La varilla de {place_name} ahora muestra {digit}, y la varilla de {next_place_name} tiene uno menos."
+    }
+  },
+  "special_cases": {
+    "carry_cascade": "La varilla de {next_place_name} ya está llena, así que el acarreo pasa una varilla más a la izquierda.",
+    "borrow_cascade": "La varilla de {next_place_name} está vacía, así que pedimos prestado de la siguiente varilla de la izquierda y lo pasamos.",
+    "add_zero": "Sumar cero no cambia nada. Pasemos al siguiente dígito.",
+    "subtract_zero": "Restar cero no cambia nada. Pasemos al siguiente dígito.",
+    "rod_zero": "La varilla de {place_name} muestra cero. Ninguna cuenta toca el travesaño.",
+    "rod_nine": "La varilla de {place_name} muestra nueve. La cuenta superior y las cuatro cuentas inferiores tocan el travesaño.",
+    "overflow": "La respuesta necesita más varillas de las que tiene este ábaco. Este ábaco tiene {total_rods} varillas.",
+    "negative_result": "La respuesta quedaría por debajo de cero. Este ábaco funciona solo con números positivos.",
+    "invalid_input": "Eso no parece un número válido. Escribe solo dígitos."
+  },
+  "feedback": {
+    "correct": [
+      "Correcto.",
+      "Muy bien.",
+      "Exactamente."
+    ],
+    "incorrect": [
+      "Casi. Miremos las cuentas otra vez.",
+      "Esa no es la respuesta. Comprobémoslo paso a paso."
+    ],
+    "correct_answer_reveal": "La respuesta correcta es {result}. Tú respondiste {user_answer}.",
+    "hint_method": "Pista: comprueba si la varilla tiene suficientes cuentas. Si no, piensa en el complemento de cinco o de diez.",
+    "hint_place": "Pista: mira primero la varilla de {place_name}.",
+    "encouragement": [
+      "Tómate tu tiempo. La precisión importa más que la velocidad.",
+      "Cada error es un paso hacia el aprendizaje.",
+      "Estás mejorando con cada problema."
+    ],
+    "your_turn": "Ahora te toca a ti. Mueve las cuentas para sumar {number} en la varilla de {place_name}.",
+    "try_again": "Inténtalo de nuevo.",
+    "your_turn_multiply": "Ahora te toca a ti. Multiplica {first_number} por {second_number} en el ábaco, y luego escribe tu respuesta."
+  },
+  "playback": {
+    "paused": "En pausa.",
+    "resumed": "Continuando.",
+    "slow_mode": "Modo lento activado. Explicaré cada paso con detalle.",
+    "fast_mode": "Modo rápido activado. Seré breve.",
+    "muted": "Voz desactivada.",
+    "unmuted": "Voz activada."
+  },
+  "multiplication": {
+    "intro": "Esto es multiplicación. Multiplicamos cada dígito de {first_number} por cada dígito de {second_number}, un dígito a la vez.",
+    "partial": "{digit} por {digit2} es {partial}."
+  },
+  "division": {
+    "intro": "Esto es división. Tomamos los dígitos de {first_number} desde la izquierda, y preguntamos cuántas veces cabe {second_number}.",
+    "work": "Ahora trabajamos con {cur}.",
+    "ask": "¿Cuántas veces cabe {second_number} en {cur}?",
+    "times": "{q} veces. {q} por {second_number} es {product}.",
+    "left": "Queda {rem}.",
+    "remainder": "{first_number} dividido por {second_number} es {quotient}, con resto {rem}.",
+    "by_zero": "No podemos dividir por cero. Elige otro número.",
+    "your_turn_divide": "Ahora te toca a ti. Divide {first_number} entre {second_number}, y luego escribe tu respuesta."
+  },
+  "intro": {
+    "title": "Conoce el Ábaco",
+    "scenes": {
+      "before_numbers": "Mucho antes de las calculadoras, incluso antes de que el papel y el lápiz fueran comunes, la gente necesitaba contar. Grano. Monedas. Días. Animales del rebaño. Al llegar a diez, los dedos se acababan. Así que la gente buscó piedrecitas, nudos en cuerdas, marcas en un palo — cualquier cosa que pudiera retener un número mientras sus manos y su mente pasaban a la siguiente tarea.",
+      "idea_spread": "Hace unos cuatro mil años, alguien tuvo una buena idea: en vez de esparcir piedrecitas, ordenémoslas en varillas. Dividámoslas en columnas. Que cada columna represente su propio lugar — unidades, decenas, centenas. Esta idea sencilla se extendió entre culturas y cambió de forma — el ábaco romano, el suanpan chino, el soroban japonés, el schoty ruso. Cada uno se veía un poco distinto, pero la idea interior era la misma: números que se pueden ver, tocar y mover.",
+      "meet_soroban": "Esto es un soroban — la forma en la que aprenderemos. Es lo bastante pequeño para sostenerlo con dos manos, y aun así puede retener un número tan grande como necesites. Ven, conozcamos sus partes, una por una.",
+      "rods": "Las cuentas viven en estas varillas verticales. Cada varilla representa un lugar — esta es las unidades, esta las decenas, esta las centenas — igual que las columnas que usas al escribir números, solo que ahora lo tienes en tus manos.",
+      "beam": "La barra que cruza por el medio se llama travesaño. Es la línea más importante de todas. La cuenta que toca el travesaño se cuenta. La cuenta alejada del travesaño no. Cada número en este ábaco es en realidad la respuesta a una pregunta: ¿qué cuentas están tocando el travesaño ahora mismo?",
+      "beads": "Sobre el travesaño hay una cuenta, que vale cinco. Debajo del travesaño hay cuatro cuentas, cada una vale uno. Baja la cuenta del cinco y sube las cuentas inferiores, y mira cómo el travesaño las cuenta — todos los números del cero al nueve en una sola varilla se forman así.",
+      "why_it_matters": "En esta época llena de calculadoras, quizá te preguntes por qué todavía aprendemos esto. Porque el ábaco no solo da respuestas — muestra cómo se construye la respuesta. Cada acarreo, cada préstamo, cada complemento ocurre ante tus ojos, bajo la punta de tus dedos. Quienes lo practican durante años pueden sumar y restar más rápido que una calculadora, solo con la mente — porque tras suficiente práctica, ya no necesitan las cuentas. Simplemente las ven en su imaginación.",
+      "invitation": "Y este es el ábaco — miles de años de contar, plegados en un marco que puedes sostener. Ahora te toca a ti. Ven, pongamos tu primer número."
+    }
+  }
+}
