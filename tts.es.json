@@ -161,7 +161,9 @@
     "rod_nine": "La varilla de {place_name} muestra nueve. La cuenta superior y las cuatro cuentas inferiores tocan el travesaño.",
     "overflow": "La respuesta necesita más varillas de las que tiene este ábaco. Este ábaco tiene {total_rods} varillas.",
     "negative_result": "La respuesta quedaría por debajo de cero. Este ábaco funciona solo con números positivos.",
-    "invalid_input": "Eso no parece un número válido. Escribe solo dígitos."
+    "invalid_input": "Eso no parece un número válido. Escribe solo dígitos.",
+    "zero_digit_add": "El dígito de las {place_name} es 0. {digit} más 0 es {digit}. Nada cambia.",
+    "zero_digit_sub": "El dígito de las {place_name} es 0. {digit} menos 0 es {digit}. Nada cambia."
   },
   "feedback": {
     "correct": [
@@ -195,7 +197,14 @@
   },
   "multiplication": {
     "intro": "Esto es multiplicación. Multiplicamos cada dígito de {first_number} por cada dígito de {second_number}, un dígito a la vez.",
-    "partial": "{digit} por {digit2} es {partial}."
+    "partial": "{digit} por {digit2} es {partial}.",
+    "start_left": "Siempre empezamos por la izquierda, con el dígito de las {place_name} de {first_number}.",
+    "units_only": "Un dígito por un dígito: la respuesta va en la varilla de las unidades.",
+    "next_rod": "Siguiente dígito: estas respuestas terminan una varilla a la derecha, en la varilla de {place_name}.",
+    "start_rod_intro": "Ahora, ¿dónde empezamos? Toma el primer dígito de cada número y multiplícalos.",
+    "start_rod_big": "{digit} por {digit2} es {fprod}. Eso es diez o más, así que cuenta todos los dígitos de los dos números, {digits_total}, y empieza en la varilla de {place_name}.",
+    "start_rod_small": "{digit} por {digit2} es {fprod}. Eso es menos que diez, así que cuenta todos los dígitos, {digits_total}, y luego uno menos, {start_place}, y empieza en la varilla de {place_name}.",
+    "multi_note": "Para multiplicar más de dos números, multiplica primero dos de ellos, y luego multiplica esa respuesta por el siguiente número."
   },
   "division": {
     "intro": "Esto es división. Tomamos los dígitos de {first_number} desde la izquierda, y preguntamos cuántas veces cabe {second_number}.",

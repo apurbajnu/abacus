@@ -75,8 +75,10 @@
   }
 
   // state: array indexed [place-1] of digits 0..9
-  Solver.prototype.solve = function (a, operator, b) {
+  Solver.prototype.solve = function (a, operator, b, opts) {
     const T = this.T;
+    opts = opts || {};
+    const lessonMode = !!opts.lesson; // lessons narrate zero digits, watch mode skips them
     const steps = [];
     const vars = {
       first_number: a,
@@ -110,7 +112,7 @@
     }
 
     const core = this._core(steps);
-    const { push, setNumber, addAt, subAt } = core;
+    const { push, setNumber, addAt, subAt, digitAt } = core;
 
     // add a multi-digit number n starting at `place` (units of n sits on `place`),
     // most significant digit first, using the narrated add methods
@@ -125,12 +127,20 @@
     }
 
     function applyNumber(n) {
-      const s = String(n);
+      const s = (lessonMode && opts.bPad) || String(n);
       push(T.session.start_from_left, 0, null);
       for (let i = 0; i < s.length; i++) {
         const d = Number(s[i]);
         const place = s.length - i;
-        if (d === 0) continue;
+        if (d === 0) {
+          if (lessonMode) {
+            push(narrate(
+              operator === '+' ? T.special_cases.zero_digit_add : T.special_cases.zero_digit_sub,
+              { place_name: placeName(T, place), digit: digitAt(place) },
+            ), 0, null);
+          }
+          continue;
+        }
         push(narrate(T.session.next_digit, { place_name: placeName(T, place), digit: d }), 0, null);
         if (operator === '+') addAt(place, d);
         else subAt(place, d);
@@ -148,10 +158,37 @@
       push(narrate(T.multiplication.intro, vars), 0, null);
       let acc = 0;
       const as = String(a), bs = String(b);
+      // teach where the first product lands: digit count of both numbers, one less
+      push(narrate(T.multiplication.start_left, { place_name: placeName(T, as.length), first_number: a }), 0, null);
+      const totalDigits = as.length + bs.length;
+      if (totalDigits > 2) {
+        // where to start: multiply the leading digits; >= 10 means count all
+        // digits, < 10 means one less — that rod holds the leading digit
+        const fd = Number(as[0]), sd = Number(bs[0]);
+        const fprod = fd * sd;
+        push(narrate(T.multiplication.start_rod_intro, {}), 0, null);
+        if (fprod >= 10) {
+          push(narrate(T.multiplication.start_rod_big, {
+            digit: fd, digit2: sd, fprod, digits_total: totalDigits,
+            place_name: placeName(T, totalDigits),
+          }), 0, null);
+        } else {
+          push(narrate(T.multiplication.start_rod_small, {
+            digit: fd, digit2: sd, fprod, digits_total: totalDigits,
+            start_place: totalDigits - 1, place_name: placeName(T, totalDigits - 1),
+          }), 0, null);
+        }
+        push(narrate(T.multiplication.multi_note, {}), 0, null);
+      } else {
+        push(narrate(T.multiplication.units_only, {}), 0, null);
+      }
       for (let i = 0; i < as.length; i++) {
         const da = Number(as[i]);
         const pa = as.length - i;
         if (da === 0) continue;
+        if (i > 0) {
+          push(narrate(T.multiplication.next_rod, { place_name: placeName(T, pa + bs.length - 1) }), 0, null);
+        }
         push(narrate(T.session.next_digit, {
           place_name: placeName(T, pa), digit: da,
         }), 0, null);

@@ -63,7 +63,7 @@
   .modes button { border-radius: 0; background: #e7dcc6; color: var(--ink); }
   .modes button.on { background: var(--wood); color: #fff; }
 
-  #welcome-overlay, #voice-prompt {
+  #welcome-overlay, #voice-prompt, #abacus-overlay, #lesson-done, #practice-fail {
     position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
     background: rgba(45, 36, 24, .45);
   }
@@ -76,12 +76,6 @@
   .welcome-card .controls { flex-direction: column; align-items: stretch; }
   .welcome-card .controls button { width: 100%; }
 
-  #lesson-dots { display: inline-flex; gap: 5px; align-items: center; }
-  #lesson-dots span {
-    width: 11px; height: 11px; border-radius: 50%; background: #d8ccb2; display: inline-block;
-  }
-  #lesson-dots span.done { background: var(--heaven); }
-  #lesson-dots span.now { background: var(--bead); transform: scale(1.25); }
   @keyframes pulse-glow { 0%,100% { box-shadow: 0 0 0 0 rgba(245,166,35,.8); } 50% { box-shadow: 0 0 0 8px rgba(245,166,35,0); } }
   .pulse { animation: pulse-glow 1.3s infinite; }
 
@@ -89,7 +83,20 @@
     min-height: 52px; padding: 12px 14px; border-radius: 10px;
     background: #fff8e8; border: 1px solid #eadfc4; font-size: 17px;
   }
-  #practice-panel, #watch-panel, #drills-panel { display: grid; gap: 10px; }
+  #practice-panel, #watch-panel, #lessons-panel { display: grid; gap: 10px; }
+  .lesson-item {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+    border: 1px solid #e4dbc8; border-radius: 10px; background: #fffdf8; cursor: pointer;
+  }
+  .lesson-item:hover { border-color: var(--wood); }
+  .lesson-item .num {
+    width: 26px; height: 26px; border-radius: 50%; background: #e7dcc6; color: var(--ink);
+    display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px;
+  }
+  .lesson-item.done .num { background: var(--heaven); color: #fff; }
+  .lesson-item .title { flex: 1; }
+  .lesson-item .prob { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .lesson-item .tag { color: var(--muted); font-size: 13px; }
   [hidden] { display: none !important; }
   .hint { color: var(--muted); font-size: 13px; }
   .error { color: #b00020; min-height: 20px; font-size: 14px; }
@@ -105,11 +112,41 @@
 <div id="welcome-overlay" hidden>
   <div class="welcome-card">
     <h2>Welcome!</h2>
-    <p>Let's learn the abacus, step by step. Where would you like to start?</p>
+    <p>Let's learn the abacus, step by step. First, a short story about where numbers began.</p>
     <div class="controls" style="justify-content:center">
       <button id="wv-intro">Watch the introduction</button>
-      <button id="wv-tour" class="secondary">Learn the abacus</button>
       <button id="wv-skip" class="secondary">Skip for now</button>
+    </div>
+  </div>
+</div>
+<div id="abacus-overlay" hidden>
+  <div class="welcome-card">
+    <h2>Nice!</h2>
+    <p>Before the lessons, would you like to meet the parts of the abacus?</p>
+    <div class="controls" style="justify-content:center">
+      <button id="ao-tour">Learn the abacus</button>
+      <button id="ao-skip" class="secondary">Go straight to lessons</button>
+    </div>
+  </div>
+</div>
+<div id="lesson-done" hidden>
+  <div class="welcome-card">
+    <h2>Lesson complete!</h2>
+    <p id="lesson-done-text">Well done.</p>
+    <div class="controls" style="justify-content:center">
+      <button id="ld-next">Next lesson</button>
+      <button id="ld-practice" class="secondary">Practice this now</button>
+      <button id="ld-list" class="secondary">Back to lesson list</button>
+    </div>
+  </div>
+</div>
+<div id="practice-fail" hidden>
+  <div class="welcome-card">
+    <h2>Not quite</h2>
+    <p>That's okay — every mistake teaches something. Want to watch the abacus solve it?</p>
+    <div class="controls" style="justify-content:center">
+      <button id="pf-watch">Watch how to solve it</button>
+      <button id="pf-try" class="secondary">Keep trying</button>
     </div>
   </div>
 </div>
@@ -128,9 +165,9 @@
   <section class="card">
     <div class="controls">
       <div class="modes" role="tablist">
-        <button id="mode-watch" class="on">Watch mode</button>
-        <button id="mode-practice">Practice mode</button>
-        <button id="mode-drills">Complements</button>
+        <button id="mode-watch" class="on">Watch</button>
+        <button id="mode-lessons">Lessons</button>
+        <button id="mode-practice">Practice</button>
       </div>
       <button id="btn-intro" class="secondary" hidden>Introduction</button>
       <button id="btn-tour" class="secondary">Learn the abacus</button>
@@ -148,7 +185,10 @@
   </section>
 
   <section class="card">
-    <label>Narration</label>
+    <div class="controls" style="justify-content:space-between">
+      <label>Narration</label>
+      <button id="btn-stop" class="secondary" hidden>■ Stop</button>
+    </div>
     <div id="subtitle">Welcome to the abacus.</div>
   </section>
 
@@ -183,20 +223,6 @@
     <div class="hint">Enter two numbers. The abacus sets the first number, then works each digit and explains every bead move.</div>
     <div class="error" id="watch-error"></div>
 
-    <div class="controls" style="margin-top:10px; padding-top:10px; border-top:1px solid #eee6d4" id="lessons-row">
-      <label>Lesson plan</label>
-      <div class="modes" id="lesson-ops">
-        <button data-op="+" class="on">+</button>
-        <button data-op="−">−</button>
-        <button data-op="×">×</button>
-        <button data-op="÷">÷</button>
-      </div>
-      <span id="lesson-dots"></span>
-      <button id="btn-lesson" class="secondary">Start lesson 1</button>
-      <button id="btn-go-practice" hidden>Go to practice mode →</button>
-    </div>
-    <div class="hint" id="lesson-hint">Ten problems for each operation, from easy to hard. Finish them all, then try practice mode.</div>
-
     <div class="controls" style="margin-top:10px; padding-top:10px; border-top:1px solid #eee6d4">
       <input type="number" id="count-from" min="0" placeholder="Count from" value="1">
       <span class="hint">to</span>
@@ -207,12 +233,21 @@
     <div class="hint">Counts one bead at a time from the first number to the second, saying each number out loud. Reverse counts backwards.</div>
   </section>
 
+  <section class="card" id="lessons-panel" hidden>
+    <div class="controls">
+      <strong style="font-size:17px">Lessons</strong>
+      <span class="hint">Start anywhere. Each lesson solves on the abacus with full explanation.</span>
+    </div>
+    <div id="lesson-list" style="display:grid;gap:6px;margin-top:10px"></div>
+  </section>
+
   <section class="card" id="practice-panel" hidden>
     <div class="controls">
       <input type="number" id="p-num-a" min="0" placeholder="First number" value="123">
       <select id="p-operator"><option>+</option><option>−</option><option>×</option><option>÷</option></select>
       <input type="number" id="p-num-b" min="0" placeholder="Second number" value="59">
       <button id="btn-start-practice">Start practice</button>
+      <button id="btn-p-random" class="secondary">Random problem</button>
     </div>
     <div class="hint">The abacus is set with the first number for you. Move the beads yourself, then check your answer.</div>
     <div class="controls">
@@ -222,28 +257,6 @@
       <button id="btn-show-solution" class="secondary">Show me how</button>
     </div>
     <div class="error" id="practice-error"></div>
-  </section>
-
-  <section class="card" id="drills-panel" hidden>
-    <div class="controls">
-      <button id="btn-start-drill">Start drill</button>
-      <select id="drill-type">
-        <option value="5">Fives: 5 − 1 = 4</option>
-        <option value="10">Tens: 10 − 1 = 9</option>
-        <option value="mix" selected>Mixed</option>
-      </select>
-      <span style="flex:1"></span>
-      <span id="drill-progress" style="font-weight:600"></span>
-      <span id="drill-score" style="font-weight:600"></span>
-    </div>
-    <div class="hint">Build the reflexes: know 5 minus 1 is 4, 10 minus 1 is 9 without thinking. Answer each one, then watch the abacus show why on the beads.</div>
-    <div class="controls">
-      <span id="drill-question" style="font-size:24px;font-weight:700;min-width:140px"></span>
-      <input type="number" id="drill-answer" placeholder="?" style="width:70px">
-      <button id="btn-drill-check">Check</button>
-      <button id="btn-drill-show" class="secondary">Show me</button>
-    </div>
-    <div class="error" id="drill-error"></div>
   </section>
 
 </main>
@@ -346,17 +359,23 @@
     a.currentTime = 0;
     return new Promise((resolve, reject) => {
       a.onended = resolve;
+      a.onpause = resolve; // stopClips() pauses mid-clip so Stop takes effect instantly
       a.onerror = () => reject(new Error('clip missing'));
       a.play().catch(reject);
     });
   }
+  let stopToken = 0; // bumped on every stop so queued clip sequences bail out
   async function playRecorded(recipe) {
     // preload every clip first so playback isn't interrupted by network fetches
     const urls = recipe
       .filter((p) => p.f === undefined || /\p{L}/u.test(p.f))
       .map(clipUrl);
     urls.forEach((url) => { if (!clipCache[url]) clipCache[url] = new Audio(url); });
-    for (const url of urls) await playClip(url);
+    const myToken = stopToken;
+    for (const url of urls) {
+      if (stopToken !== myToken) break; // stopped: don't start the next clip
+      await playClip(url);
+    }
   }
   function stopClips() { Object.values(clipCache).forEach((a) => a.pause()); }
 
@@ -465,12 +484,22 @@
   $('btn-prev').addEventListener('click', () => goToStep(stepIndex - 1));
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  function stopAll() {
+    playing = false;
+    stopToken++;
+    stopClips();
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+  }
+  $('btn-stop').addEventListener('click', stopAll);
+
   function setPlayButtons(busy) {
     $('btn-pause').disabled = !busy;
     $('btn-replay').disabled = !currentSteps;
     $('btn-play').textContent = busy ? 'Stop' : (explain ? 'Solve with explanation' : 'Solve');
     $('btn-next').disabled = !currentSteps || stepIndex >= currentSteps.length - 1;
     $('btn-prev').disabled = !currentSteps || stepIndex < 0;
+    $('btn-stop').hidden = !busy;
+    if (typeof renderLessonList === 'function') renderLessonList();
   }
 
   function readProblem(aId, opId, bId) {
@@ -488,11 +517,12 @@
   // ---------- watch mode ----------
   let solver = new Solver.Solver(T, rodCount);
   function doSolve() {
-    if (playing) { playing = false; speechSynthesis && speechSynthesis.cancel(); return; }
+    if (playing) { stopAll(); return; }
     const p = readProblem('num-a', 'operator', 'num-b');
     $('watch-error').textContent = p ? '' : T.special_cases.invalid_input;
     if (!p) return;
-    const { steps, result } = solver.solve(p.a, p.op, p.b);
+    const opts = activeLesson && activeLesson.bPad ? { lesson: true, bPad: activeLesson.bPad } : undefined;
+    const { steps, result } = solver.solve(p.a, p.op, p.b, opts);
     if (result === null) {
       subtitle.textContent = steps[0].say;
       speak(steps[0].say);
@@ -502,10 +532,11 @@
     currentRaw = steps;
     currentSteps = withExplanation(steps);
     runSteps(currentSteps).then(() => {
-      if (lastRunFinished && activeLesson && activeLesson.op === p.op) lessonComplete();
+      if (lastRunFinished && activeLesson) lessonComplete();
     });
   }
   $('btn-play').addEventListener('click', () => {
+    if (playing) { stopAll(); return; }
     // explanations are meant to be heard — offer the voice once per session
     if (muted && speedMode !== 'turbo' && !sessionStorage.getItem('abacus.voiceDeclined')) {
       $('voice-prompt').hidden = false;
@@ -628,9 +659,23 @@
       subtitle.textContent = `${Solver.pick(fb.incorrect)} ${Solver.fill(fb.correct_answer_reveal, {
         result: practice.result, user_answer: ua,
       })}`;
+      $('practice-fail').hidden = false;
     }
     practice.active = false;
     speak(subtitle.textContent);
+  });
+
+  $('pf-watch').addEventListener('click', () => {
+    $('practice-fail').hidden = true;
+    if (!practice) return;
+    const { steps } = solver.solve(practice.a, practice.op, practice.b);
+    currentRaw = steps;
+    currentSteps = withExplanation(steps);
+    runSteps(currentSteps).then(() => { if (lastRunFinished) practiceRandom(); });
+  });
+  $('pf-try').addEventListener('click', () => {
+    $('practice-fail').hidden = true;
+    practiceRandom();
   });
 
   $('btn-hint').addEventListener('click', () => {
@@ -755,8 +800,9 @@
     }
   }
   $('btn-tour').addEventListener('click', () => {
-    if (tourRunning) { tourRunning = false; if ('speechSynthesis' in window) speechSynthesis.cancel(); }
-    else runTour();
+    if (tourRunning) { tourRunning = false; stopAll(); return; }
+    if (introRunning) { introRunning = false; stopAll(); } // clicking Learn the abacus mid-intro jumps to the tour
+    runTour();
   });
 
   // ---------- introduction scenes (narrated story with abacus animation) ----------
@@ -853,48 +899,55 @@
     $('btn-intro').addEventListener('click', () => {
       if (introRunning) {
         introRunning = false;
-        if ('speechSynthesis' in window) speechSynthesis.cancel();
-        stopClips();
+        stopAll();
       }
-      else runIntro();
+      else {
+        if (tourRunning) { tourRunning = false; stopAll(); } // clicking Introduction mid-tour jumps to the intro
+        runIntro();
+      }
     });
   }
 
-  // ---------- guided lessons: 10 problems per operation, easy to hard ----------
-  const LESSONS = {
-    '+': [[2,1],[3,5],[12,5],[23,14],[47,8],[56,37],[128,21],[245,68],[367,276],[478,389]],
-    '-': [[5,2],[8,4],[9,7],[16,5],[34,18],[52,27],[83,46],[120,45],[254,168],[400,276]],
-    '*': [[2,2],[3,2],[4,3],[6,4],[12,3],[13,12],[23,14],[34,21],[46,35],[52,47]],
-    '/': [[4,2],[6,2],[8,4],[9,3],[12,3],[15,5],[24,6],[36,4],[48,6],[144,12]],
-  };
+  // ---------- lessons: 12 step-by-step lessons, start anywhere ----------
+  const LESSONS = [
+    { op: '+', p: [3,5],   title: 'Addition: one digit' },
+    { op: '+', p: [47,'08'],  title: 'Addition: two digits + one digit' },
+    { op: '+', p: [353,'81'], title: 'Addition: three digits + two digits' },
+    { op: '-', p: [8,4],   title: 'Subtraction: one digit' },
+    { op: '-', p: [16,'05'],  title: 'Subtraction: two digits − one digit' },
+    { op: '-', p: [253,97], title: 'Subtraction: three digits − two digits' },
+    { op: '*', p: [3,4],   title: 'Multiplication: one digit × one digit' },
+    { op: '*', p: [4,2],   title: 'Multiplication: one digit × one digit' },
+    { op: '*', p: [23,2],  title: 'Multiplication: two digits × one digit' },
+    { op: '*', p: [32,3],  title: 'Multiplication: two digits × one digit' },
+    { op: '*', p: [23,14], title: 'Multiplication: two digits × two digits' },
+    { op: '*', p: [362,12], title: 'Multiplication: three digits × two digits' },
+  ];
   const OP_SYMBOL = { '+': '+', '-': '−', '*': '×', '/': '÷' };
-  let lessonOp = '+';
-  let activeLesson = null; // { op, level } while its problem is on screen
-  let lessonProgress = {};
-  try { lessonProgress = JSON.parse(localStorage.getItem('abacus.lessons')) || {}; } catch (e) {}
+  let activeLesson = null; // { idx } while its problem is loaded in watch mode
+  let lessonsDone = [];
+  try { lessonsDone = JSON.parse(localStorage.getItem('abacus.lessonsDone')) || []; } catch (e) {}
 
-  function lessonDone(op) { return Math.min(lessonProgress[op] || 0, LESSONS[op].length); }
-  function allLessonsDone() { return Object.keys(LESSONS).every((op) => lessonDone(op) >= LESSONS[op].length); }
-  const opFromSymbol = (s) => s === '−' ? '-' : s === '×' ? '*' : s === '÷' ? '/' : '+';
-
-  function renderLessons() {
-    const done = lessonDone(lessonOp);
-    const dots = [];
-    for (let i = 1; i <= LESSONS[lessonOp].length; i++) {
-      dots.push(`<span class="${i <= done ? 'done' : i === done + 1 ? 'now' : ''}"></span>`);
-    }
-    $('lesson-dots').innerHTML = dots.join('');
-    const next = done + 1;
-    if (done >= LESSONS[lessonOp].length) {
-      $('btn-lesson').textContent = 'All done — replay';
-      $('btn-lesson').classList.remove('pulse');
-    } else {
-      $('btn-lesson').textContent = next === 1 ? 'Start lesson 1' : `Go to lesson ${next}`;
-    }
-    $('lesson-ops').querySelectorAll('button').forEach((b) => {
-      b.classList.toggle('on', b.dataset.op === OP_SYMBOL[lessonOp]);
+  function renderLessonList() {
+    const activeIdx = playing && activeLesson ? activeLesson.idx : -1;
+    $('lesson-list').innerHTML = LESSONS.map((l, i) => {
+      const done = lessonsDone.includes(i);
+      const stopBtn = i === activeIdx
+        ? '<button class="secondary lesson-stop" data-stop="1">■ Stop</button>'
+        : '<span class="tag">' + (done ? 'done' : '') + '</span>';
+      return `<div class="lesson-item ${done ? 'done' : ''}" data-i="${i}" role="button" tabindex="0">
+        <span class="num">${done ? '✓' : i + 1}</span>
+        <span class="title">${l.title}</span>
+        <span class="prob">${l.p[0]} ${OP_SYMBOL[l.op]} ${l.p[1]}</span>
+        ${stopBtn}
+      </div>`;
+    }).join('');
+    $('lesson-list').querySelectorAll('.lesson-item').forEach((el) => {
+      el.addEventListener('click', (ev) => {
+        if (ev.target.closest('[data-stop]')) { stopAll(); return; }
+        loadLesson(Number(el.dataset.i));
+      });
     });
-    $('btn-go-practice').hidden = !allLessonsDone();
   }
 
   function ensureRodsFor(result) {
@@ -906,176 +959,138 @@
     }
   }
 
-  function loadLesson(op, level) {
-    const [a, b] = LESSONS[op][level - 1];
-    const result = op === '+' ? a + b : op === '-' ? a - b : op === '*' ? a * b : a / b;
+  function loadLesson(idx) {
+    const l = LESSONS[idx];
+    const [a, b] = l.p; // b may be a padded string like '08' for place alignment
+    const na = Number(a), nb = Number(b);
+    const result = l.op === '+' ? na + nb : l.op === '-' ? na - nb : na * nb;
     ensureRodsFor(result);
-    $('num-a').value = a;
-    $('num-b').value = b;
-    $('operator').value = OP_SYMBOL[op];
+    $('num-a').value = na;
+    $('num-b').value = nb;
+    $('operator').value = OP_SYMBOL[l.op];
     $('watch-error').textContent = '';
-    displayProblem(a, op, b);
-    activeLesson = { op, level };
+    displayProblem(a, l.op, b);
+    activeLesson = { idx, bPad: typeof b === 'string' && b.length > String(nb).length ? b : null };
     subtitle.className = '';
-    subtitle.textContent = `Lesson ${level} of ${LESSONS[op].length}: ${a} ${OP_SYMBOL[op]} ${b}. Click "Solve with explanation".`;
-    $('btn-play').classList.add('pulse');
+    subtitle.textContent = `Lesson ${idx + 1} of ${LESSONS.length} — ${l.title}: ${a} ${OP_SYMBOL[l.op]} ${b}.`;
+    renderLessonList();
+    if (muted && speedMode !== 'turbo' && !sessionStorage.getItem('abacus.voiceDeclined')) {
+      $('voice-prompt').hidden = false; // lesson narration is meant to be heard
+      return;
+    }
+    doSolve(); // a lesson starts solving as soon as it is clicked, staying on the lessons screen
   }
 
   function lessonComplete() {
-    const { op, level } = activeLesson;
+    const { idx } = activeLesson;
     activeLesson = null;
     $('btn-play').classList.remove('pulse');
-    if (level > lessonDone(op)) {
-      lessonProgress[op] = level;
-      localStorage.setItem('abacus.lessons', JSON.stringify(lessonProgress));
+    if (!lessonsDone.includes(idx)) {
+      lessonsDone.push(idx);
+      localStorage.setItem('abacus.lessonsDone', JSON.stringify(lessonsDone));
     }
-    renderLessons();
-    const done = lessonDone(op);
-    if (done >= LESSONS[op].length) {
-      subtitle.className = 'feedback-good';
-      const nextOps = Object.keys(LESSONS).filter((o) => lessonDone(o) < LESSONS[o].length);
-      if (nextOps.length) {
-        const sym = OP_SYMBOL[nextOps[0]];
-        subtitle.textContent = `Excellent! You finished all ${LESSONS[op].length} ${OP_SYMBOL[op]} lessons. Try the ${sym} lessons next.`;
-      } else {
-        subtitle.textContent = 'Amazing! You finished every lesson. Time to practice on your own.';
-        $('btn-go-practice').classList.add('pulse');
-      }
-    } else {
-      subtitle.className = 'feedback-good';
-      subtitle.textContent = `Lesson ${level} done! Ready for lesson ${done + 1}?`;
-      loadLesson(op, done + 1);
-    }
+    renderLessonList();
+    subtitle.className = 'feedback-good';
+    const l = LESSONS[idx];
+    subtitle.textContent = `Lesson ${idx + 1} complete! ${l.p[0]} ${OP_SYMBOL[l.op]} ${l.p[1]} solved.`;
+    $('lesson-done-text').textContent = `You solved ${l.p[0]} ${OP_SYMBOL[l.op]} ${l.p[1]}. What next?`;
+    $('ld-next').hidden = idx >= LESSONS.length - 1;
+    $('lesson-done').hidden = false;
   }
 
-  $('lesson-ops').addEventListener('click', (ev) => {
-    const btn = ev.target.closest('button');
-    if (!btn) return;
-    lessonOp = opFromSymbol(btn.dataset.op);
-    activeLesson = null;
-    renderLessons();
+  $('ld-next').addEventListener('click', () => {
+    $('lesson-done').hidden = true;
+    const next = LESSONS.findIndex((l, i) => !lessonsDone.includes(i));
+    loadLesson(next >= 0 ? next : LESSONS.length - 1);
   });
-  $('btn-lesson').addEventListener('click', () => {
-    const next = Math.min(lessonDone(lessonOp) + 1, LESSONS[lessonOp].length);
-    loadLesson(lessonOp, next);
-  });
-  $('btn-go-practice').addEventListener('click', () => {
-    $('btn-go-practice').classList.remove('pulse');
+  $('ld-practice').addEventListener('click', () => {
+    $('lesson-done').hidden = true;
     switchMode('practice');
+    const last = lessonsDone[lessonsDone.length - 1];
+    const op = last !== undefined ? LESSONS[last].op : '+';
+    $('p-operator').value = OP_SYMBOL[op];
+    practiceRandom();
     subtitle.className = '';
-    subtitle.textContent = 'Now practice on your own! Enter a problem, move the beads yourself, then check your answer.';
+    subtitle.textContent = 'Practice: move the beads yourself, then check your answer.';
   });
-  renderLessons();
+  $('ld-list').addEventListener('click', () => {
+    $('lesson-done').hidden = true;
+    switchMode('lessons');
+  });
+  renderLessonList();
 
-  // ---------- first-visit welcome: intro or tour, then lessons ----------
-  function finishWelcome() {
+  // ---------- first-visit flow: intro -> abacus tour -> lessons ----------
+  function goLessons() {
     localStorage.setItem('abacus.guided', '1');
     $('welcome-overlay').hidden = true;
-    switchMode('watch');
+    $('abacus-overlay').hidden = true;
+    switchMode('lessons');
     subtitle.className = '';
-    subtitle.textContent = 'Pick a lesson below, then click "Solve with explanation" to watch the abacus work.';
-    $('btn-lesson').classList.add('pulse');
+    subtitle.textContent = 'Pick any lesson to begin. It will solve on the abacus with full explanation.';
   }
   if (!localStorage.getItem('abacus.guided')) {
     $('welcome-overlay').hidden = false;
-    $('wv-intro').addEventListener('click', async () => { $('welcome-overlay').hidden = true; setMuted(false); await runIntro(); finishWelcome(); });
-    $('wv-tour').addEventListener('click', async () => { $('welcome-overlay').hidden = true; setMuted(false); await runTour(); finishWelcome(); });
-    $('wv-skip').addEventListener('click', finishWelcome);
+    $('wv-intro').addEventListener('click', async () => {
+      $('welcome-overlay').hidden = true;
+      setMuted(false);
+      await runIntro();
+      $('abacus-overlay').hidden = false;
+    });
+    $('wv-skip').addEventListener('click', () => {
+      $('welcome-overlay').hidden = true;
+      $('abacus-overlay').hidden = false;
+    });
+    $('ao-tour').addEventListener('click', async () => {
+      $('abacus-overlay').hidden = true;
+      setMuted(false);
+      await runTour();
+      goLessons();
+    });
+    $('ao-skip').addEventListener('click', goLessons);
   }
 
   // ---------- mode switch ----------
-  const MODES = ['watch', 'practice', 'drills'];
+  const MODES = ['watch', 'lessons', 'practice'];
   function switchMode(mode) {
     MODES.forEach((m) => {
       $('mode-' + m).classList.toggle('on', m === mode);
-      $(m === 'drills' ? 'drills-panel' : m + '-panel').hidden = m !== mode;
+      $(m + '-panel').hidden = m !== mode;
     });
     localStorage.setItem('abacus.mode', mode);
+    if (mode === 'practice') practiceRandom();
   }
   const savedMode = localStorage.getItem('abacus.mode');
   switchMode(MODES.includes(savedMode) ? savedMode : 'watch');
   MODES.forEach((m) => $('mode-' + m).addEventListener('click', () => switchMode(m)));
 
-  // ---------- complement drills ----------
-  // reflex questions: 5 - 1 = 4, 10 - 1 = 9, and missing-addend (3 + ? = 10)
-  let drill = null; // { type, total, index, score, q, awaiting }
-  const DRILL_TOTAL = 10;
-
-  function drillQuestion() {
-    const type = drill.type === 'mix' ? (Math.random() < 0.5 ? 5 : 10) : Number(drill.type);
-    const n = 1 + Math.floor(Math.random() * (type - 1)); // 1..4 or 1..9
-    const missingAddend = Math.random() < 0.4;
-    if (missingAddend) {
-      return { text: `${n} + ? = ${type}`, answer: type - n, demo: [n, '+', type - n] };
+  // ---------- practice mode: random problems ----------
+  // fills the practice inputs with a fresh random problem for the chosen operator
+  function practiceRandom() {
+    const opSym = $('p-operator').value;
+    const op = opSym === '−' ? '-' : opSym === '×' ? '*' : opSym === '÷' ? '/' : '+';
+    const digits = Math.min(3, Math.max(1, solver.rods - 1));
+    const cap = Math.min(solver.maxValue, Math.pow(10, digits) - 1);
+    const pick = () => Math.floor(Math.random() * cap) + 1;
+    let a = pick(), b = pick();
+    if (op === '*') {
+      const md = Math.max(1, Math.floor(solver.rods / 2));
+      const mcap = Math.pow(10, md) - 1;
+      a = Math.floor(Math.random() * mcap) + 1;
+      b = Math.floor(Math.random() * mcap) + 1;
     }
-    return { text: `${type} − ${n} = ?`, answer: type - n, demo: [type, '-', n] };
-  }
-
-  function nextDrill() {
-    if (drill.index >= drill.total) {
-      subtitle.className = 'feedback-good';
-      subtitle.textContent = `Drill complete! You got ${drill.score} of ${drill.total} right.`;
-      speak(subtitle.textContent);
-      $('drill-question').textContent = '';
-      $('drill-progress').textContent = '';
-      drill = null;
-      return;
+    if (op === '/') {
+      b = 2 + Math.floor(Math.random() * 8);
+      const qcap = Math.floor(cap / b);
+      const q = qcap > 1 ? 1 + Math.floor(Math.random() * (qcap - 1)) : 1;
+      a = b * q;
     }
-    drill.q = drillQuestion();
-    drill.awaiting = true;
-    $('drill-question').textContent = drill.q.text;
-    $('drill-answer').value = '';
-    $('drill-error').textContent = '';
-    $('drill-progress').textContent = `${drill.index + 1} / ${drill.total}`;
-    $('drill-score').textContent = `Score: ${drill.score}`;
-    $('drill-answer').focus();
+    if (op === '-' && a < b) { const t = a; a = b; b = t; }
+    $('p-num-a').value = a;
+    $('p-num-b').value = b;
+    $('p-answer').value = '';
+    $('practice-error').textContent = '';
   }
-
-  function demonstrateDrill() {
-    const [a, op, b] = drill.q.demo;
-    const { steps } = solver.solve(a, op, b);
-    $('problem-display').textContent = `${a} ${op === '+' ? '+' : '−'} ${b} = ${op === '+' ? a + b : a - b}`;
-    currentRaw = steps;
-    currentSteps = withExplanation(steps);
-    runSteps(currentSteps);
-  }
-
-  $('btn-start-drill').addEventListener('click', () => {
-    drill = { type: $('drill-type').value, total: DRILL_TOTAL, index: 0, score: 0 };
-    subtitle.className = '';
-    subtitle.textContent = T.session.welcome + ' Let\'s practice complements.';
-    nextDrill();
-  });
-
-  $('btn-drill-check').addEventListener('click', async () => {
-    if (!drill || !drill.awaiting) { $('drill-error').textContent = 'Start a drill first.'; return; }
-    const given = $('drill-answer').value.trim();
-    if (given === '' || isNaN(Number(given))) { $('drill-error').textContent = T.special_cases.invalid_input; return; }
-    $('drill-error').textContent = '';
-    const good = Number(given) === drill.q.answer;
-    if (good) {
-      drill.score++;
-      subtitle.className = 'feedback-good';
-      subtitle.textContent = Solver.pick(T.feedback.correct);
-    } else {
-      subtitle.className = 'feedback-bad';
-      subtitle.textContent = `${Solver.pick(T.feedback.incorrect)} ${Solver.fill(T.feedback.correct_answer_reveal, { result: drill.q.answer, user_answer: Number(given) })}`;
-    }
-    speak(subtitle.textContent);
-    drill.awaiting = false;
-    drill.index++;
-    await demonstrateDrill();
-    setTimeout(nextDrill, 800);
-  });
-
-  $('btn-drill-show').addEventListener('click', () => {
-    if (!drill) { $('drill-error').textContent = 'Start a drill first.'; return; }
-    demonstrateDrill();
-  });
-
-  $('drill-answer').addEventListener('keydown', (ev) => {
-    if (ev.key === 'Enter') $('btn-drill-check').click();
-  });
+  $('btn-p-random').addEventListener('click', practiceRandom);
 
   // ---------- language ----------
   $('lang').value = lang;

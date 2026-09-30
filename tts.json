@@ -161,7 +161,9 @@
     "rod_nine": "The {place_name} rod shows nine. The heaven bead and all four earth beads touch the beam.",
     "overflow": "The answer needs more rods than this abacus has. This abacus has {total_rods} rods.",
     "negative_result": "The answer would be below zero. This abacus works with positive numbers only.",
-    "invalid_input": "That doesn't look like a valid number. Please enter digits only."
+    "invalid_input": "That doesn't look like a valid number. Please enter digits only.",
+    "zero_digit_add": "The {place_name} digit is 0. {digit} plus 0 is {digit}. Nothing changes.",
+    "zero_digit_sub": "The {place_name} digit is 0. {digit} minus 0 is {digit}. Nothing changes."
   },
   "feedback": {
     "correct": [
@@ -195,7 +197,14 @@
   },
   "multiplication": {
     "intro": "This is multiplication. We multiply each digit of {first_number} by each digit of {second_number}, one digit at a time.",
-    "partial": "{digit} times {digit2} is {partial}."
+    "partial": "{digit} times {digit2} is {partial}.",
+    "start_left": "We always start from the left, with the {place_name} digit of {first_number}.",
+    "units_only": "One digit times one digit: the answer goes on the units rod.",
+    "next_rod": "Next digit: these answers end one rod to the right, on the {place_name} rod.",
+    "start_rod_intro": "Now, where do we start? Take the first digit of each number and multiply them.",
+    "start_rod_big": "{digit} times {digit2} is {fprod}. That is ten or more, so count all the digits of both numbers, {digits_total}, and start on the {place_name} rod.",
+    "start_rod_small": "{digit} times {digit2} is {fprod}. That is less than ten, so count all the digits of both numbers, {digits_total}, then one less, {start_place}, and start on the {place_name} rod.",
+    "multi_note": "To multiply more than two numbers, multiply two of them first, then multiply that answer by the next number."
   },
   "division": {
     "intro": "This is division. We take the digits of {first_number} from the left, and ask how many times {second_number} fits.",
