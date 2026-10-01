@@ -100,7 +100,7 @@ function collectClips(tts) {
 // The multiplication lessons use fixed problems; each step's full sentence is
 // synthesized as ONE clip (numbers spoken as words) instead of stitched
 // fragments. Keep this list in sync with LESSONS in index.html.
-const MULT_LESSONS = [[2, 2], [2, 8], [24, 82], [24, 26], [362, 12]];
+const MULT_LESSONS = [[2, 2], [2, 8], [24, 82], [24, 26], [362, 12], [253, 63]];
 
 function lessonSentences(tts) {
   const { Solver } = require(path.join(__dirname, '..', 'solver.js'));
@@ -133,7 +133,7 @@ function numberToWords(lang, n) {
   const t = TENS_WORDS[lang] || TENS_WORDS.en;
   const b = BIG_WORDS[lang] || BIG_WORDS.en;
   const j = (xs) => xs.filter(Boolean).join(b.join);
-  if (!Number.isInteger(n) || n < 0 || n > 9999) return String(n);
+  if (!Number.isInteger(n) || n < 0 || n > 99999) return String(n);
   if (n < 100) return t[n];
   if (n < 1000) {
     const h = Math.floor(n / 100), r = n % 100;
@@ -141,7 +141,8 @@ function numberToWords(lang, n) {
     return j([t[h], b.hundred, r ? t[r] : '']);
   }
   const th = Math.floor(n / 1000), r = n % 1000;
-  return j([th === 1 && (lang === 'es') ? '' : t[th], b.thousand, r ? numberToWords(lang, r) : '']);
+  const thWord = th === 1 && lang === 'es' ? '' : numberToWords(lang, th);
+  return j([thWord, b.thousand, r ? numberToWords(lang, r) : '']);
 }
 
 // replace every digit run in a sentence with its spoken form
