@@ -200,6 +200,7 @@
     "partial": "{digit} por {digit2} es {partial}.",
     "start_left": "Siempre empezamos por la izquierda, con el dígito de las {place_name} de {first_number}.",
     "units_only": "Un dígito por un dígito: la respuesta va en la varilla de las unidades.",
+    "units_only_big": "{digit} por {digit2} es diez o más, así que la respuesta es demasiado grande para la varilla de las unidades — se pasa a la varilla de las decenas.",
     "next_rod": "Siguiente dígito: estas respuestas terminan una varilla a la derecha, en la varilla de {place_name}.",
     "start_rod_intro": "Ahora, ¿dónde empezamos? Toma el primer dígito de cada número y multiplícalos.",
     "start_rod_big": "{digit} por {digit2} es {fprod}. Eso es diez o más, así que cuenta todos los dígitos de los dos números, {digits_total}, y empieza en la varilla de {place_name}.",

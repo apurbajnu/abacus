@@ -387,9 +387,11 @@
       if (manifest) {
         // recorded mode: play clips; a missing clip is skipped, never TTS-mixed
         try {
-          if (recipe && recipe.length) { await playRecorded(recipe); return; }
+          // a full-sentence clip (e.g. a lesson line with numbers baked in)
+          // always beats a stitched fragment/number recipe — one fluent utterance
           const file = manifest[text];
           if (file) { await playClip('audio/' + lang + '/' + file); return; }
+          if (recipe && recipe.length) { await playRecorded(recipe); return; }
         } catch (e) { /* clip unavailable: stay silent rather than mix voices */ }
         return;
       }
@@ -908,7 +910,7 @@
     });
   }
 
-  // ---------- lessons: 12 step-by-step lessons, start anywhere ----------
+  // ---------- lessons: 11 step-by-step lessons, start anywhere ----------
   const LESSONS = [
     { op: '+', p: [3,5],   title: 'Addition: one digit' },
     { op: '+', p: [47,'08'],  title: 'Addition: two digits + one digit' },
@@ -916,11 +918,10 @@
     { op: '-', p: [8,4],   title: 'Subtraction: one digit' },
     { op: '-', p: [16,'05'],  title: 'Subtraction: two digits − one digit' },
     { op: '-', p: [253,97], title: 'Subtraction: three digits − two digits' },
-    { op: '*', p: [3,4],   title: 'Multiplication: one digit × one digit' },
-    { op: '*', p: [4,2],   title: 'Multiplication: one digit × one digit' },
-    { op: '*', p: [23,2],  title: 'Multiplication: two digits × one digit' },
-    { op: '*', p: [32,3],  title: 'Multiplication: two digits × one digit' },
-    { op: '*', p: [23,14], title: 'Multiplication: two digits × two digits' },
+    { op: '*', p: [2,2],   title: 'Multiplication: one digit × one digit' },
+    { op: '*', p: [2,8],   title: 'Multiplication: one digit × one digit, crossing ten' },
+    { op: '*', p: [24,82], title: 'Multiplication: two digits × two digits' },
+    { op: '*', p: [24,26], title: 'Multiplication: two digits × two digits' },
     { op: '*', p: [362,12], title: 'Multiplication: three digits × two digits' },
   ];
   const OP_SYMBOL = { '+': '+', '-': '−', '*': '×', '/': '÷' };

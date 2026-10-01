@@ -181,6 +181,11 @@
         push(narrate(T.multiplication.multi_note, {}), 0, null);
       } else {
         push(narrate(T.multiplication.units_only, {}), 0, null);
+        if (Number(as[0]) * Number(bs[0]) >= 10) {
+          push(narrate(T.multiplication.units_only_big, {
+            digit: Number(as[0]), digit2: Number(bs[0]),
+          }), 0, null);
+        }
       }
       for (let i = 0; i < as.length; i++) {
         const da = Number(as[i]);

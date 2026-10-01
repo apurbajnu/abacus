@@ -200,6 +200,7 @@
     "partial": "{digit} times {digit2} is {partial}.",
     "start_left": "We always start from the left, with the {place_name} digit of {first_number}.",
     "units_only": "One digit times one digit: the answer goes on the units rod.",
+    "units_only_big": "{digit} times {digit2} is ten or more, so the answer is too big for the units rod — it moves over to the tens rod.",
     "next_rod": "Next digit: these answers end one rod to the right, on the {place_name} rod.",
     "start_rod_intro": "Now, where do we start? Take the first digit of each number and multiply them.",
     "start_rod_big": "{digit} times {digit2} is {fprod}. That is ten or more, so count all the digits of both numbers, {digits_total}, and start on the {place_name} rod.",
