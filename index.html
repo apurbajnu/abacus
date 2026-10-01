@@ -63,7 +63,7 @@
   .modes button { border-radius: 0; background: #e7dcc6; color: var(--ink); }
   .modes button.on { background: var(--wood); color: #fff; }
 
-  #welcome-overlay, #voice-prompt, #abacus-overlay, #lesson-done, #practice-fail {
+  #welcome-overlay, #voice-prompt, #abacus-overlay, #lesson-done {
     position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
     background: rgba(45, 36, 24, .45);
   }
@@ -141,15 +141,6 @@
     </div>
   </div>
 </div>
-<div id="practice-fail" hidden>
-  <div class="welcome-card">
-    <h2>Not quite</h2>
-    <p>That's okay — every mistake teaches something. Want to watch the abacus solve it?</p>
-    <div class="controls" style="justify-content:center">
-      <button id="pf-watch">Watch how to solve it</button>
-      <button id="pf-try" class="secondary">Keep trying</button>
-    </div>
-  </div>
 </div>
 <div id="voice-prompt" hidden>
   <div class="welcome-card">
@@ -203,6 +194,7 @@
           <option selected>7</option><option>8</option><option>9</option><option>10</option>
         </select>
         <button id="btn-clear" class="secondary">Clear</button>
+        <button id="btn-done" hidden>Done?</button>
         <span id="problem-display" style="font-size:18px;font-weight:600"></span>
       </div>
     </div>
@@ -250,10 +242,8 @@
       <button id="btn-start-practice">Start practice</button>
       <button id="btn-p-random" class="secondary">Random problem</button>
     </div>
-    <div class="hint">The abacus is set with the first number for you. Move the beads yourself, then check your answer.</div>
+    <div class="hint">Move the beads yourself to work out the answer, then press Done? to check the abacus.</div>
     <div class="controls">
-      <input type="number" id="p-answer" placeholder="Your answer">
-      <button id="btn-check">Check answer</button>
       <button id="btn-hint" class="secondary">Hint</button>
       <button id="btn-show-solution" class="secondary">Show me how</button>
     </div>
@@ -622,6 +612,7 @@
 
   // ---------- practice mode ----------
   let practice = null; // {a, op, b, result, active}
+  let practiceWatch = null; // problem to replay in watch mode after a wrong answer
   $('btn-start-practice').addEventListener('click', async () => {
     const p = readProblem('p-num-a', 'p-operator', 'p-num-b');
     $('practice-error').textContent = p ? '' : T.special_cases.invalid_input;
@@ -633,24 +624,21 @@
       return;
     }
     practice = { a: p.a, op: p.op, b: p.b, result, active: true };
+    $('btn-done').hidden = false;
     displayProblem(p.a, p.op, p.b);
     subtitle.className = '';
-    $('p-answer').value = '';
     playing = false;
     await runSteps(steps);
     subtitle.textContent = 'Now move the beads yourself, then enter your answer.';
   });
 
-  $('btn-check').addEventListener('click', () => {
+  // Done? reads the answer straight off the beads — no typed answer
+  $('btn-done').addEventListener('click', () => {
     if (!practice || !practice.active) { $('practice-error').textContent = 'Start a practice problem first.'; return; }
-    const userAnswer = $('p-answer').value.trim();
-    if (userAnswer === '' || isNaN(Number(userAnswer))) {
-      $('practice-error').textContent = T.special_cases.invalid_input; return;
-    }
     $('practice-error').textContent = '';
-    const ua = Number(userAnswer);
+    $('btn-done').hidden = true;
     const beadValue = abacus.value();
-    const good = ua === practice.result && beadValue === practice.result;
+    const good = beadValue === practice.result;
     const fb = T.feedback;
     subtitle.className = good ? 'feedback-good' : 'feedback-bad';
     if (good) {
@@ -659,26 +647,11 @@
         second_number: practice.b, result: practice.result,
       })}`;
     } else {
-      subtitle.textContent = `${Solver.pick(fb.incorrect)} ${Solver.fill(fb.correct_answer_reveal, {
-        result: practice.result, user_answer: ua,
-      })}`;
-      $('practice-fail').hidden = false;
+      practiceWatch = { a: practice.a, op: practice.op, b: practice.b };
+      subtitle.textContent = `${Solver.pick(fb.incorrect)} Click the Watch button to see the calculation.`;
     }
     practice.active = false;
     speak(subtitle.textContent);
-  });
-
-  $('pf-watch').addEventListener('click', () => {
-    $('practice-fail').hidden = true;
-    if (!practice) return;
-    const { steps } = solver.solve(practice.a, practice.op, practice.b);
-    currentRaw = steps;
-    currentSteps = withExplanation(steps);
-    runSteps(currentSteps).then(() => { if (lastRunFinished) practiceRandom(); });
-  });
-  $('pf-try').addEventListener('click', () => {
-    $('practice-fail').hidden = true;
-    practiceRandom();
   });
 
   $('btn-hint').addEventListener('click', () => {
@@ -1074,7 +1047,20 @@
     const saved = Number(localStorage.getItem('abacus.currentLesson'));
     if (Number.isInteger(saved) && saved >= 0 && saved < LESSONS.length) loadLesson(saved);
   }
-  MODES.forEach((m) => $('mode-' + m).addEventListener('click', () => switchMode(m)));
+  MODES.forEach((m) => $('mode-' + m).addEventListener('click', () => {
+    // after a wrong practice answer, Watch replays that problem's full solution
+    if (m === 'watch' && practiceWatch) {
+      const pw = practiceWatch;
+      practiceWatch = null;
+      $('num-a').value = pw.a;
+      $('operator').value = OP_SYMBOL[pw.op];
+      $('num-b').value = pw.b;
+      switchMode('watch');
+      doSolve();
+      return;
+    }
+    switchMode(m);
+  }));
 
   // ---------- practice mode: random problems ----------
   // fills the practice inputs with a fresh random problem for the chosen operator
@@ -1100,7 +1086,6 @@
     if (op === '-' && a < b) { const t = a; a = b; b = t; }
     $('p-num-a').value = a;
     $('p-num-b').value = b;
-    $('p-answer').value = '';
     $('practice-error').textContent = '';
   }
   $('btn-p-random').addEventListener('click', practiceRandom);
