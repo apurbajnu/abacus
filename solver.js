@@ -495,16 +495,18 @@
       : operator === '*' ? a * b : Math.floor(a / b);
     const steps = [];
     steps.push({ say: T.session.clearing, place: 0, digit: null, clear: true });
-    const state = new Array(this.rods).fill(0);
-    const s = String(a);
-    steps.push(narrate(T.session.set_number, vars));
-    for (let i = 0; i < s.length; i++) {
-      const place = s.length - i;
-      const d = Number(s[i]);
-      if (d === 0) continue;
-      state[place - 1] = d;
-      const n = narrate(T.session.set_digit, { digit: d, place_name: placeName(T, place) });
-      steps.push({ say: n.say, audio: n.audio, place, digit: d });
+    // addition/subtraction start with the first number on the abacus;
+    // multiplication and division start from a cleared abacus
+    if (operator === '+' || operator === '-') {
+      const s = String(a);
+      steps.push(narrate(T.session.set_number, vars));
+      for (let i = 0; i < s.length; i++) {
+        const place = s.length - i;
+        const d = Number(s[i]);
+        if (d === 0) continue;
+        const n = narrate(T.session.set_digit, { digit: d, place_name: placeName(T, place) });
+        steps.push({ say: n.say, audio: n.audio, place, digit: d });
+      }
     }
     steps.push(narrate(T.session.problem_intro, vars));
     // cue for the biggest digit of b that changes beads
