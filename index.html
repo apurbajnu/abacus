@@ -89,6 +89,7 @@
     border: 1px solid #e4dbc8; border-radius: 10px; background: #fffdf8; cursor: pointer;
   }
   .lesson-item:hover { border-color: var(--wood); }
+  .lesson-item.current { border-color: var(--wood); box-shadow: 0 0 0 1px var(--wood); }
   .lesson-item .num {
     width: 26px; height: 26px; border-radius: 50%; background: #e7dcc6; color: var(--ink);
     display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px;
@@ -931,12 +932,13 @@
 
   function renderLessonList() {
     const activeIdx = playing && activeLesson ? activeLesson.idx : -1;
+    const currentIdx = Number(localStorage.getItem('abacus.currentLesson'));
     $('lesson-list').innerHTML = LESSONS.map((l, i) => {
       const done = lessonsDone.includes(i);
       const stopBtn = i === activeIdx
         ? '<button class="secondary lesson-stop" data-stop="1">■ Stop</button>'
-        : '<span class="tag">' + (done ? 'done' : '') + '</span>';
-      return `<div class="lesson-item ${done ? 'done' : ''}" data-i="${i}" role="button" tabindex="0">
+        : `<span class="tag">${i === currentIdx ? 'current' : done ? 'done' : ''}</span>`;
+      return `<div class="lesson-item ${done ? 'done' : ''} ${i === currentIdx && i !== activeIdx ? 'current' : ''}" data-i="${i}" role="button" tabindex="0">
         <span class="num">${done ? '✓' : i + 1}</span>
         <span class="title">${l.title}</span>
         <span class="prob">${l.p[0]} ${OP_SYMBOL[l.op]} ${l.p[1]}</span>
@@ -972,6 +974,7 @@
     $('watch-error').textContent = '';
     displayProblem(a, l.op, b);
     activeLesson = { idx, bPad: typeof b === 'string' && b.length > String(nb).length ? b : null };
+    localStorage.setItem('abacus.currentLesson', String(idx)); // resume across reloads
     subtitle.className = '';
     subtitle.textContent = `Lesson ${idx + 1} of ${LESSONS.length} — ${l.title}: ${a} ${OP_SYMBOL[l.op]} ${b}.`;
     renderLessonList();
@@ -1001,8 +1004,10 @@
 
   $('ld-next').addEventListener('click', () => {
     $('lesson-done').hidden = true;
-    const next = LESSONS.findIndex((l, i) => !lessonsDone.includes(i));
-    loadLesson(next >= 0 ? next : LESSONS.length - 1);
+    // strictly sequential: lesson 1 first, then 2, 3, ... — never jump to the
+    // first incomplete one, so the order is always the same
+    const cur = Number(localStorage.getItem('abacus.currentLesson'));
+    loadLesson(Math.min((Number.isInteger(cur) ? cur : -1) + 1, LESSONS.length - 1));
   });
   $('ld-practice').addEventListener('click', () => {
     $('lesson-done').hidden = true;
@@ -1026,8 +1031,9 @@
     $('welcome-overlay').hidden = true;
     $('abacus-overlay').hidden = true;
     switchMode('lessons');
-    subtitle.className = '';
-    subtitle.textContent = 'Pick any lesson to begin. It will solve on the abacus with full explanation.';
+    // resume the remembered lesson; a first-time visitor always starts at lesson 1
+    const saved = Number(localStorage.getItem('abacus.currentLesson'));
+    loadLesson(Number.isInteger(saved) && saved >= 0 && saved < LESSONS.length ? saved : 0);
   }
   if (!localStorage.getItem('abacus.guided')) {
     $('welcome-overlay').hidden = false;
@@ -1062,6 +1068,11 @@
   }
   const savedMode = localStorage.getItem('abacus.mode');
   switchMode(MODES.includes(savedMode) ? savedMode : 'watch');
+  // returning visitor on the lessons screen: resume the remembered lesson
+  if (savedMode === 'lessons' && localStorage.getItem('abacus.guided')) {
+    const saved = Number(localStorage.getItem('abacus.currentLesson'));
+    if (Number.isInteger(saved) && saved >= 0 && saved < LESSONS.length) loadLesson(saved);
+  }
   MODES.forEach((m) => $('mode-' + m).addEventListener('click', () => switchMode(m)));
 
   // ---------- practice mode: random problems ----------
