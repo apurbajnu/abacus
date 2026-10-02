@@ -370,10 +370,11 @@
   }
   function stopClips() { Object.values(clipCache).forEach((a) => a.pause()); }
 
-  function speak(text, recipe) {
+  function speak(text, recipe, forceTTS) {
     return (async () => {
       if (!text) { await sleep(30); return; }
       if (speedMode === 'turbo' || muted) { await sleep(30); return; }
+      if (forceTTS) { await speakTTS(text); return; }
       await voiceReady; // recorded mode decided before the first word
       if (manifest) {
         // recorded mode: play clips; a missing clip is skipped, never TTS-mixed
@@ -434,7 +435,7 @@
         stepIndex++;
         if (st.say) subtitle.textContent = st.say;
         if (st.clear) abacus.clear();
-        await speak(st.say, st.audio);
+        await speak(st.say, st.audio, st.tts);
         if (st.place >= 1) {
           abacus.setRodByPlace(st.place, st.digit);
           await sleep(pace.bead);
@@ -468,7 +469,7 @@
     if (st && st.say) {
       subtitle.className = '';
       subtitle.textContent = st.say;
-      speak(st.say, st.audio);
+      speak(st.say, st.audio, st.tts);
     }
     setPlayButtons(false);
   }

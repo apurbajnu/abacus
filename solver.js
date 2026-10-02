@@ -226,7 +226,7 @@
         return { steps, result: null };
       }
       push(narrate(T.division.setup_dividend, vars), 0, null);
-      const u = Q + 1; // units rod of the dividend
+      const u = this.rods - as.length + 1; // dividend anchored on the far-left rods
       for (let i = 0; i < as.length; i++) {
         push(narrate(T.session.set_digit, {
           digit: Number(as[i]), place_name: placeName(T, u + as.length - 1 - i),
@@ -275,6 +275,9 @@
     }
     push(narrate(T.session.result, { result }), 0, null);
     push(narrate(T.session.problem_complete, Object.assign({}, vars, { result })), 0, null);
+    // division narration has no recorded clips yet — the page speaks it with
+    // the system TTS voice instead
+    if (operator === '/') steps.forEach((st) => { st.tts = true; });
     return { steps, result };
   };
 
