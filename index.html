@@ -898,6 +898,10 @@
     { op: '*', p: [24,26], title: 'Multiplication: two digits × two digits' },
     { op: '*', p: [362,12], title: 'Multiplication: three digits × two digits' },
     { op: '*', p: [253,63], title: 'Multiplication: three digits × two digits' },
+    { op: '/', p: [84,2],  title: 'Division: two digits ÷ one digit' },
+    { op: '/', p: [96,4],  title: 'Division: two digits ÷ one digit' },
+    { op: '/', p: [369,3], title: 'Division: three digits ÷ one digit' },
+    { op: '/', p: [252,12], title: 'Division: three digits ÷ two digits' },
   ];
   const OP_SYMBOL = { '+': '+', '-': '−', '*': '×', '/': '÷' };
   let activeLesson = null; // { idx } while its problem is loaded in watch mode
@@ -940,8 +944,13 @@
     const l = LESSONS[idx];
     const [a, b] = l.p; // b may be a padded string like '08' for place alignment
     const na = Number(a), nb = Number(b);
-    const result = l.op === '+' ? na + nb : l.op === '-' ? na - nb : na * nb;
-    ensureRodsFor(result);
+    const result = l.op === '+' ? na + nb : l.op === '-' ? na - nb
+      : l.op === '*' ? na * nb : Math.floor(na / nb);
+    // division lessons need rods for divisor + dividend + quotient side by side
+    const needed = l.op === '/'
+      ? String(a).length + String(b).length + String(result).length
+      : String(result).length;
+    ensureRodsFor(Math.pow(10, needed - 1));
     $('num-a').value = na;
     $('num-b').value = nb;
     $('operator').value = OP_SYMBOL[l.op];

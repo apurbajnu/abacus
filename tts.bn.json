@@ -209,6 +209,10 @@
   },
   "division": {
     "intro": "এটা ভাগ। আমরা {first_number} এর অঙ্কগুলো বাঁ দিক থেকে নিয়ে জিজ্ঞেস করি, {second_number} কতবার যায়।",
+    "setup_divisor": "ভাজক, {second_number}, বসবে একদম বাঁ দিকের দণ্ডে, যাতে সেটা চোখের সামনে থাকে।",
+    "setup_dividend": "ভাজ্য, {first_number}, বসবে মাঝখানে।",
+    "setup_quotient": "উত্তরটা ডান দিকের দণ্ডে বড় হবে, একবারে এক অঙ্ক করে, শেষ হবে এককের দণ্ডে।",
+    "quotient_digit": "{place_name} দণ্ডে {q} লেখো — এটা উত্তরের পরের অঙ্ক।",
     "work": "এখন আমরা কাজ করি {cur} নিয়ে।",
     "ask": "{second_number}, {cur} এ কতবার যায়?",
     "times": "{q} বার। {q} গুণ {second_number} মানে {product}।",

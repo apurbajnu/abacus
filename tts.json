@@ -209,6 +209,10 @@
   },
   "division": {
     "intro": "This is division. We take the digits of {first_number} from the left, and ask how many times {second_number} fits.",
+    "setup_divisor": "The divisor, {second_number}, goes on the far left rod, so we keep it in view.",
+    "setup_dividend": "The dividend, {first_number}, goes in the middle.",
+    "setup_quotient": "The answer will grow on the right rods, one digit at a time, ending on the units rod.",
+    "quotient_digit": "Write {q} on the {place_name} rod — the next digit of the answer.",
     "work": "Now we work with {cur}.",
     "ask": "How many times does {second_number} go into {cur}?",
     "times": "{q} times. {q} times {second_number} is {product}.",

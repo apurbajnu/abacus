@@ -100,14 +100,18 @@ function collectClips(tts) {
 // The multiplication lessons use fixed problems; each step's full sentence is
 // synthesized as ONE clip (numbers spoken as words) instead of stitched
 // fragments. Keep this list in sync with LESSONS in index.html.
-const MULT_LESSONS = [[2, 2], [2, 8], [24, 82], [24, 26], [362, 12], [253, 63]];
+const LESSON_PROBLEMS = [
+  ['*', [2, 2]], ['*', [2, 8]], ['*', [24, 82]], ['*', [24, 26]],
+  ['*', [362, 12]], ['*', [253, 63]],
+  ['/', [84, 2]], ['/', [96, 4]], ['/', [369, 3]], ['/', [252, 12]],
+];
 
 function lessonSentences(tts) {
   const { Solver } = require(path.join(__dirname, '..', 'solver.js'));
   const solver = new Solver(tts);
   const out = new Set();
-  for (const [a, b] of MULT_LESSONS) {
-    const r = solver.solve(a, '*', b, { lesson: true });
+  for (const [op, [a, b]] of LESSON_PROBLEMS) {
+    const r = solver.solve(a, op, b, { lesson: true });
     for (const st of (r.steps || [])) {
       if (st && st.say && !/\{\w+\}/.test(st.say)) out.add(st.say);
     }

@@ -212,12 +212,34 @@
         }
       }
     } else if (operator === '/') {
-      // long division, left to right: bring digits down, ask how many times b
-      // fits, subtract q*b, and collect the quotient digit by digit
+      // long division on the soroban: the divisor sits on the far-left rods,
+      // the dividend in the middle, and the quotient grows on the right rods,
+      // one digit at a time, ending on the units rod
       push(narrate(T.session.problem_intro, vars), 0, null);
       push(narrate(T.division.intro, vars), 0, null);
-      const as = String(a);
-      let cur = 0, ranOnce = false, qd = '';
+      const as = String(a), bs = String(b);
+      const qd = a < b ? '0' : String(Math.floor(a / b));
+      const Q = qd.length;
+      if (bs.length + as.length + Q > this.rods) {
+        const n = narrate(T.special_cases.overflow, { total_rods: this.rods });
+        steps.push({ say: n.say, audio: n.audio, place: 0, digit: null });
+        return { steps, result: null };
+      }
+      push(narrate(T.division.setup_divisor, vars), 0, null);
+      for (let j = 0; j < bs.length; j++) {
+        push(narrate(T.session.set_digit, {
+          digit: Number(bs[j]), place_name: placeName(T, this.rods - j),
+        }), this.rods - j, Number(bs[j]));
+      }
+      push(narrate(T.division.setup_dividend, vars), 0, null);
+      const u = Q + 1; // units rod of the dividend
+      for (let i = 0; i < as.length; i++) {
+        push(narrate(T.session.set_digit, {
+          digit: Number(as[i]), place_name: placeName(T, u + as.length - 1 - i),
+        }), u + as.length - 1 - i, Number(as[i]));
+      }
+      push(narrate(T.division.setup_quotient, vars), 0, null);
+      let cur = 0, ranOnce = false, qRod = Q;
       for (let i = 0; i < as.length; i++) {
         cur = cur * 10 + Number(as[i]);
         if (!ranOnce && cur < b) continue; // still gathering leading digits
@@ -226,17 +248,14 @@
         const product = q * b;
         const rem = cur - product;
         push(narrate(T.division.work, { cur }), 0, null);
-        const cs = String(cur);
-        for (let k = 0; k < cs.length; k++) {
-          push(narrate(T.session.set_digit, {
-            digit: Number(cs[k]), place_name: placeName(T, cs.length - k),
-          }), cs.length - k, Number(cs[k]));
-        }
         push(narrate(T.division.ask, Object.assign({}, vars, { cur })), 0, null);
         push(narrate(T.division.times, { q, second_number: b, product }), 0, null);
-        if (product > 0) subNumberAt(1, product);
+        if (product > 0) subNumberAt(u + as.length - 1 - i, product);
+        push(narrate(T.division.quotient_digit, {
+          q, place_name: placeName(T, qRod),
+        }), qRod, q);
         push(narrate(T.division.left, { rem }), 0, null);
-        qd += q;
+        qRod -= 1;
         cur = rem;
       }
       if (!ranOnce) {
@@ -244,9 +263,8 @@
         push(narrate(T.division.work, { cur: a }), 0, null);
         push(narrate(T.division.ask, Object.assign({}, vars, { cur: a })), 0, null);
         push(narrate(T.division.times, { q: 0, second_number: b, product: 0 }), 0, null);
+        push(narrate(T.division.quotient_digit, { q: 0, place_name: placeName(T, 1) }), 1, 0);
         push(narrate(T.division.left, { rem: a }), 0, null);
-        qd = '0';
-        cur = a;
       }
       const remainder = operator === '/' ? a - Math.floor(a / b) * b : 0;
       const quotient = Number(qd);
@@ -255,13 +273,7 @@
           quotient, rem: remainder,
         })), 0, null);
       }
-      steps.push({ say: T.session.clearing, place: 0, digit: null, clear: true });
-      const qs = String(quotient);
-      for (let k = 0; k < qs.length; k++) {
-        push(narrate(T.session.set_digit, {
-          digit: Number(qs[k]), place_name: placeName(T, qs.length - k),
-        }), qs.length - k, Number(qs[k]));
-      }
+      // the quotient is already on the right rods; keep it on display
     } else {
       setNumber(a, vars);
       push(narrate(T.session.problem_intro, vars), 0, null);
@@ -495,9 +507,9 @@
       : operator === '*' ? a * b : Math.floor(a / b);
     const steps = [];
     steps.push({ say: T.session.clearing, place: 0, digit: null, clear: true });
-    // addition/subtraction start with the first number on the abacus;
-    // multiplication and division start from a cleared abacus
-    if (operator === '+' || operator === '-') {
+    // addition, subtraction and division start with the first number (the
+    // dividend) on the abacus; multiplication starts from a cleared abacus
+    if (operator !== '*') {
       const s = String(a);
       steps.push(narrate(T.session.set_number, vars));
       for (let i = 0; i < s.length; i++) {
