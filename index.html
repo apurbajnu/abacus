@@ -375,11 +375,15 @@
       if (!text) { await sleep(30); return; }
       if (speedMode === 'turbo' || muted) { await sleep(30); return; }
       if (forceTTS) {
-        // division: play the recorded clip when one exists (en/hi/bn),
-        // otherwise fall back to the system voice (es until clips exist)
+        // division: whole-sentence clip first (lesson lines), then the
+        // stitched fragment recipe (all languages), system voice only if
+        // no recorded clip exists at all
         await voiceReady;
         if (manifest && manifest[text]) {
           try { await playClip('audio/' + lang + '/' + manifest[text]); return; } catch (e) {}
+        }
+        if (recipe && recipe.length) {
+          try { await playRecorded(recipe); return; } catch (e) {}
         }
         await speakTTS(text);
         return;
