@@ -212,24 +212,18 @@
         }
       }
     } else if (operator === '/') {
-      // long division on the soroban: the divisor sits on the far-left rods,
-      // the dividend in the middle, and the quotient grows on the right rods,
-      // one digit at a time, ending on the units rod
+      // long division on the soroban: only the dividend is set, on the left
+      // rods; the quotient grows on the right rods, one digit at a time,
+      // ending on the units rod. The divisor stays spoken, never displayed.
       push(narrate(T.session.problem_intro, vars), 0, null);
       push(narrate(T.division.intro, vars), 0, null);
-      const as = String(a), bs = String(b);
+      const as = String(a);
       const qd = a < b ? '0' : String(Math.floor(a / b));
       const Q = qd.length;
-      if (bs.length + as.length + Q > this.rods) {
+      if (as.length + Q > this.rods) {
         const n = narrate(T.special_cases.overflow, { total_rods: this.rods });
         steps.push({ say: n.say, audio: n.audio, place: 0, digit: null });
         return { steps, result: null };
-      }
-      push(narrate(T.division.setup_divisor, vars), 0, null);
-      for (let j = 0; j < bs.length; j++) {
-        push(narrate(T.session.set_digit, {
-          digit: Number(bs[j]), place_name: placeName(T, this.rods - j),
-        }), this.rods - j, Number(bs[j]));
       }
       push(narrate(T.division.setup_dividend, vars), 0, null);
       const u = Q + 1; // units rod of the dividend

@@ -946,9 +946,9 @@
     const na = Number(a), nb = Number(b);
     const result = l.op === '+' ? na + nb : l.op === '-' ? na - nb
       : l.op === '*' ? na * nb : Math.floor(na / nb);
-    // division lessons need rods for divisor + dividend + quotient side by side
+    // division lessons need rods for dividend + quotient side by side
     const needed = l.op === '/'
-      ? String(a).length + String(b).length + String(result).length
+      ? String(a).length + String(result).length
       : String(result).length;
     ensureRodsFor(Math.pow(10, needed - 1));
     $('num-a').value = na;

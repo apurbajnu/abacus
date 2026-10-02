@@ -209,8 +209,7 @@
   },
   "division": {
     "intro": "Esto es división. Tomamos los dígitos de {first_number} desde la izquierda, y preguntamos cuántas veces cabe {second_number}.",
-    "setup_divisor": "El divisor, {second_number}, va en la varilla de más a la izquierda, para tenerlo a la vista.",
-    "setup_dividend": "El dividendo, {first_number}, va en el medio.",
+    "setup_dividend": "El dividendo, {first_number}, va en las varillas de la izquierda.",
     "setup_quotient": "La respuesta crecerá en las varillas de la derecha, un dígito a la vez, terminando en la varilla de las unidades.",
     "quotient_digit": "Escribe {q} en la varilla de {place_name} — el siguiente dígito de la respuesta.",
     "work": "Ahora trabajamos con {cur}.",
