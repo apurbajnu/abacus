@@ -79,6 +79,19 @@
   @keyframes pulse-glow { 0%,100% { box-shadow: 0 0 0 0 rgba(245,166,35,.8); } 50% { box-shadow: 0 0 0 8px rgba(245,166,35,0); } }
   .pulse { animation: pulse-glow 1.3s infinite; }
 
+  /* icon-only buttons: text appears as a tooltip on hover */
+  button.icon-btn {
+    width: 40px; padding: 8px 0; font-size: 16px; line-height: 1; position: relative;
+  }
+  button.icon-btn::after {
+    content: attr(data-tip); position: absolute; top: calc(100% + 6px); left: 50%;
+    transform: translateX(-50%); background: var(--ink); color: #fff;
+    padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 400;
+    white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity .15s;
+    z-index: 6;
+  }
+  button.icon-btn:hover::after, button.icon-btn:focus-visible::after { opacity: 1; }
+
   #narration-card {
     position: fixed; right: 24px; bottom: 24px; z-index: 5;
     width: min(420px, calc(100vw - 32px));
@@ -171,8 +184,8 @@
         <button id="mode-lessons">Lessons</button>
         <button id="mode-practice">Practice</button>
       </div>
-      <button id="btn-intro" class="secondary" hidden>Introduction</button>
-      <button id="btn-tour" class="secondary">Learn the abacus</button>
+      <button id="btn-intro" class="secondary icon-btn" data-tip="Introduction" hidden>🎬</button>
+      <button id="btn-tour" class="secondary icon-btn" data-tip="Learn the abacus">🧭</button>
       <select id="lang" style="width:90px">
         <option value="en">English</option>
         <option value="bn">বাংলা</option>
@@ -180,10 +193,10 @@
         <option value="es">Español</option>
       </select>
       <span style="flex:1"></span>
-      <button id="btn-narration" class="secondary toggle on">Narration on</button>
-      <button id="btn-explain" class="secondary toggle on">Explanation on</button>
-      <button id="btn-slow" class="secondary toggle">Normal speed</button>
-      <button id="btn-mute" class="secondary toggle on">Voice off</button>
+      <button id="btn-narration" class="secondary toggle icon-btn on" data-tip="Narration on" aria-label="Narration">💬</button>
+      <button id="btn-explain" class="secondary toggle icon-btn on" data-tip="Explanation on" aria-label="Explanation">📖</button>
+      <button id="btn-slow" class="secondary toggle icon-btn" data-tip="Normal speed" aria-label="Speed">▶️</button>
+      <button id="btn-mute" class="secondary toggle icon-btn on" data-tip="Voice off" aria-label="Voice">🔇</button>
     </div>
   </section>
 
@@ -701,13 +714,13 @@
   if (localStorage.getItem('abacus.narration') === 'off') {
     narrCard.hidden = true;
     $('btn-narration').classList.remove('on');
-    $('btn-narration').textContent = 'Narration off';
+    $('btn-narration').dataset.tip = 'Narration off';
   }
   $('btn-narration').addEventListener('click', () => {
     const show = narrCard.hidden;
     narrCard.hidden = !show;
     $('btn-narration').classList.toggle('on', show);
-    $('btn-narration').textContent = show ? 'Narration on' : 'Narration off';
+    $('btn-narration').dataset.tip = show ? 'Narration on' : 'Narration off';
     localStorage.setItem('abacus.narration', show ? 'on' : 'off');
   });
   (function makeDraggable() {
@@ -737,7 +750,8 @@
   $('btn-slow').addEventListener('click', () => {
     speedMode = SPEED_ORDER[(SPEED_ORDER.indexOf(speedMode) + 1) % SPEED_ORDER.length];
     $('btn-slow').classList.toggle('on', speedMode !== 'normal');
-    $('btn-slow').textContent = SPEED_LABEL[speedMode];
+    $('btn-slow').textContent = speedMode === 'slow' ? '🐢' : speedMode === 'turbo' ? '⚡' : '▶️';
+    $('btn-slow').dataset.tip = SPEED_LABEL[speedMode];
     if (speedMode === 'turbo' && 'speechSynthesis' in window) speechSynthesis.cancel();
     const msg = speedMode === 'slow' ? T.playback.slow_mode
       : speedMode === 'turbo' ? 'Turbo mode. No voice, steps only.'
@@ -749,7 +763,8 @@
   function setMuted(v) {
     muted = v;
     $('btn-mute').classList.toggle('on', muted);
-    $('btn-mute').textContent = muted ? 'Voice off' : 'Voice on';
+    $('btn-mute').textContent = muted ? '🔇' : '🔊';
+    $('btn-mute').dataset.tip = muted ? 'Voice off' : 'Voice on';
     if (muted && 'speechSynthesis' in window) speechSynthesis.cancel();
   }
   $('btn-mute').addEventListener('click', () => setMuted(!muted));
@@ -779,7 +794,7 @@
   $('btn-explain').addEventListener('click', () => {
     explain = !explain;
     $('btn-explain').classList.toggle('on', explain);
-    $('btn-explain').textContent = explain ? 'Explanation on' : 'Explanation off';
+    $('btn-explain').dataset.tip = explain ? 'Explanation on' : 'Explanation off';
     if (!playing) $('btn-play').textContent = explain ? 'Solve with explanation' : 'Solve';
     if (currentRaw) {
       playing = false;
@@ -798,7 +813,8 @@
     tourRunning = true;
     playing = true;
     abacus.locked = true;
-    $('btn-tour').textContent = 'Stop tour';
+    $('btn-tour').textContent = '⏹';
+    $('btn-tour').dataset.tip = 'Stop tour';
     const pace = PACE[speedMode];
     const TOUR = [
       { key: 'abacus', hl: 'frame', set: null },
@@ -830,7 +846,8 @@
       playing = false;
       abacus.locked = false;
       abacus.highlight(null);
-      $('btn-tour').textContent = 'Learn the abacus';
+      $('btn-tour').textContent = '🧭';
+      $('btn-tour').dataset.tip = 'Learn the abacus';
       if (subtitle.textContent === T.glossary.clear) {
         subtitle.textContent = T.session.cleared;
       }
@@ -908,7 +925,8 @@
     introRunning = true;
     playing = true;
     abacus.locked = true;
-    $('btn-intro').textContent = 'Stop intro';
+    $('btn-intro').textContent = '⏹';
+    $('btn-intro').dataset.tip = 'Stop intro';
     const scenes = introScenes();
     try {
       for (const sc of scenes) {
@@ -928,7 +946,8 @@
       abacus.locked = false;
       abacus.highlight(null);
       $('abacus').classList.remove('dim');
-      $('btn-intro').textContent = 'Introduction';
+      $('btn-intro').textContent = '🎬';
+      $('btn-intro').dataset.tip = 'Introduction';
     }
   }
   if (T.intro) {
