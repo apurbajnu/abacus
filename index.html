@@ -79,9 +79,19 @@
   @keyframes pulse-glow { 0%,100% { box-shadow: 0 0 0 0 rgba(245,166,35,.8); } 50% { box-shadow: 0 0 0 8px rgba(245,166,35,0); } }
   .pulse { animation: pulse-glow 1.3s infinite; }
 
+  #narration-card {
+    position: fixed; right: 24px; bottom: 24px; z-index: 5;
+    width: min(420px, calc(100vw - 32px));
+    background: rgba(255, 255, 255, .75);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    box-shadow: 0 8px 24px rgba(0,0,0,.15);
+  }
+  #narration-card .controls { cursor: grab; touch-action: none; user-select: none; }
+  #narration-card.dragging .controls { cursor: grabbing; }
   #subtitle {
     min-height: 52px; padding: 12px 14px; border-radius: 10px;
-    background: #fff8e8; border: 1px solid #eadfc4; font-size: 17px;
+    background: rgba(255, 255, 255, .55); border: 1px solid rgba(0,0,0,.08);
+    font-size: 17px; color: #000;
   }
   #practice-panel, #watch-panel, #lessons-panel { display: grid; gap: 10px; }
   .lesson-item {
@@ -170,14 +180,15 @@
         <option value="es">Español</option>
       </select>
       <span style="flex:1"></span>
+      <button id="btn-narration" class="secondary toggle on">Narration on</button>
       <button id="btn-explain" class="secondary toggle on">Explanation on</button>
       <button id="btn-slow" class="secondary toggle">Normal speed</button>
       <button id="btn-mute" class="secondary toggle on">Voice off</button>
     </div>
   </section>
 
-  <section class="card">
-    <div class="controls" style="justify-content:space-between">
+  <section class="card" id="narration-card">
+    <div class="controls" style="justify-content:space-between" id="narration-handle">
       <label>Narration</label>
       <button id="btn-stop" class="secondary" hidden>■ Stop</button>
     </div>
@@ -685,6 +696,42 @@
   });
 
   // ---------- shared controls ----------
+  // floating narration card: toggle + drag by its header
+  const narrCard = $('narration-card');
+  if (localStorage.getItem('abacus.narration') === 'off') {
+    narrCard.hidden = true;
+    $('btn-narration').classList.remove('on');
+    $('btn-narration').textContent = 'Narration off';
+  }
+  $('btn-narration').addEventListener('click', () => {
+    const show = narrCard.hidden;
+    narrCard.hidden = !show;
+    $('btn-narration').classList.toggle('on', show);
+    $('btn-narration').textContent = show ? 'Narration on' : 'Narration off';
+    localStorage.setItem('abacus.narration', show ? 'on' : 'off');
+  });
+  (function makeDraggable() {
+    const handle = $('narration-handle');
+    let drag = null;
+    handle.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('button')) return; // Stop button still works
+      const r = narrCard.getBoundingClientRect();
+      drag = { dx: e.clientX - r.left, dy: e.clientY - r.top, w: r.width };
+      narrCard.classList.add('dragging');
+      handle.setPointerCapture(e.pointerId);
+    });
+    handle.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      narrCard.style.left = Math.min(Math.max(0, e.clientX - drag.dx), innerWidth - drag.w) + 'px';
+      narrCard.style.top = Math.min(Math.max(0, e.clientY - drag.dy), innerHeight - 40) + 'px';
+      narrCard.style.right = 'auto';
+      narrCard.style.bottom = 'auto';
+    });
+    const end = () => { drag = null; narrCard.classList.remove('dragging'); };
+    handle.addEventListener('pointerup', end);
+    handle.addEventListener('pointercancel', end);
+  })();
+
   const SPEED_ORDER = ['normal', 'slow', 'turbo'];
   const SPEED_LABEL = { normal: 'Normal speed', slow: 'Slow mode', turbo: 'Turbo (no voice)' };
   $('btn-slow').addEventListener('click', () => {
